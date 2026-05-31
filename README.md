@@ -1,17 +1,96 @@
-# church_reimbursement
+# Church Reimbursement Platform
 
-A new Flutter project.
+A cross-platform expense and reimbursement management system designed for churches and nonprofit organizations.
 
-## Getting Started
+Built with Flutter and Firebase, supporting Web, Android, and iOS.
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## Key Features
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### Receipt Processing
+- Capture or upload receipt images
+- OCR-based text extraction (planned)
+- Automatic detection of amount, date, and vendor
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Expense Management
+- Submit reimbursement requests
+- Ministry / fund categorization
+- Attach receipts and notes
+- Track submission history
+
+### Approval Workflow
+- Admin approval and rejection flow
+- Status tracking (Pending / Approved / Rejected)
+- Role-based access control (planned)
+
+### Reporting
+- CSV / Excel export for accounting
+- Monthly summaries
+- Audit-friendly records
+
+---
+
+## Tech Stack
+
+- Flutter
+- Firebase
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Storage
+- Google ML Kit (planned for OCR)
+- LLM API (planned for AI parsing)
+
+---
+
+## Architecture
+
+Receipt Upload → OCR Processing → Data Structuring → Approval Workflow → Export / Reporting
+
+---
+
+## Project Goals
+
+- Eliminate paper-based reimbursement workflows
+- Reduce manual accounting work
+- Improve financial transparency
+- Provide a simple expense system for churches
+
+---
+
+## Security
+
+- Firebase Authentication
+- Firestore security rules
+- Secure cloud storage
+- HTTPS communication
+
+---
+
+## Roadmap
+
+### MVP
+- Authentication
+- Receipt upload
+- Expense submission
+- Admin approval
+
+### Enhancement
+- Notifications
+- UI improvements
+- Error handling
+
+### Expansion
+- Multi-church support
+- Accounting integrations
+- Analytics dashboard
+
+---
+
+## Setup
+
+```bash
+git clone https://github.com/jennyyom/church-reimbursement-platform.git
+cd church-reimbursement-platform
+flutter pub get
+flutter run
