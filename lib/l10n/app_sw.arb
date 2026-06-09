@@ -1,0 +1,15 @@
+{
+  "@@locale": "sw",
+  "signIn": "Ingia",
+  "signOut": "Toka",
+  "submitReceipt": "Wasilisha Risiti",
+  "amount": "Kiasi",
+  "date": "Tarehe",
+  "description": "Maelezo",
+  "category": "Aina",
+  "pending": "Inasubiri",
+  "approved": "Imeidhinishwa",
+  "rejected": "Imekataliwa",
+  "approve": "Idhinisha",
+  "reject": "Kataa"
+}

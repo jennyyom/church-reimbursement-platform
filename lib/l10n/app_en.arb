@@ -1,0 +1,15 @@
+{
+  "@@locale": "en",
+  "signIn": "Sign In",
+  "signOut": "Sign Out",
+  "submitReceipt": "Submit Receipt",
+  "amount": "Amount",
+  "date": "Date",
+  "description": "Description",
+  "category": "Category",
+  "pending": "Pending",
+  "approved": "Approved",
+  "rejected": "Rejected",
+  "approve": "Approve",
+  "reject": "Reject"
+}
