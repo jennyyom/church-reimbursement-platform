@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'upload_page.dart';
+import '../main.dart';
 
 // User 화면 (영수증 제출)
 class UserHomePage extends StatelessWidget {
@@ -16,11 +16,39 @@ class UserHomePage extends StatelessWidget {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
+  icon: const Icon(Icons.language),
+  onPressed: () {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: const Text('English'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('en'));
+              Navigator.pop(context);
             },
           ),
+          ListTile(
+            title: const Text('한국어'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('ko'));
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            title: const Text('Kiswahili'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('sw'));
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  },
+),
         ],
       ),
       body: Center(
@@ -53,11 +81,39 @@ class ApproverHomePage extends StatelessWidget {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
+  icon: const Icon(Icons.language),
+  onPressed: () {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: const Text('English'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('en'));
+              Navigator.pop(context);
             },
           ),
+          ListTile(
+            title: const Text('한국어'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('ko'));
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            title: const Text('Kiswahili'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('sw'));
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  },
+),
         ],
       ),
       body: const Center(
@@ -85,11 +141,39 @@ class AdminHomePage extends StatelessWidget {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
+  icon: const Icon(Icons.language),
+  onPressed: () {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: const Text('English'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('en'));
+              Navigator.pop(context);
             },
           ),
+          ListTile(
+            title: const Text('한국어'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('ko'));
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            title: const Text('Kiswahili'),
+            onTap: () {
+              ChurchReimbursementApp.of(context)?.setLocale(const Locale('sw'));
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  },
+),
         ],
       ),
       body: const Center(
