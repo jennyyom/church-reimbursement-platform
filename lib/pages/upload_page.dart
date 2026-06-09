@@ -4,6 +4,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:typed_data';
+import '../models/expense.dart';
+import '../models/app_user.dart';
 
 class UploadPage extends StatefulWidget {
   const UploadPage({super.key});
@@ -35,38 +37,50 @@ class _UploadPageState extends State<UploadPage> {
 
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      // 1. 유저 정보에서 churchId 가져오기
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final appUser = AppUser.fromFirestore(
+        userDoc.data() as Map<String, dynamic>,
+        uid,
+      );
 
-      // 1. Firebase Storage에 업로드
+      // 2. Storage 업로드
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('receipts/$uid/$fileName');
-
       await storageRef.putData(_imageBytes!);
-
-      // 2. 다운로드 URL 가져오기
       final downloadUrl = await storageRef.getDownloadURL();
 
-      // 3. Firestore에 기록 저장
-      await FirebaseFirestore.instance.collection('receipts').add({
-        'uid': uid,
-        'imageUrl': downloadUrl,
-        'status': 'pending', // 승인 대기
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // 3. Expense 모델로 Firestore 저장
+      final expense = Expense(
+        id: '',
+        uid: uid,
+        churchId: appUser.churchId,
+        imageUrl: downloadUrl,
+        status: ExpenseStatus.pending,
+        createdAt: DateTime.now(),
+      );
+
+      await FirebaseFirestore.instance
+          .collection('churches')
+          .doc(appUser.churchId)
+          .collection('expenses')
+          .add(expense.toFirestore());
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Receipt submitted successfully!')),
       );
-      Navigator.pop(context); // 제출 후 홈으로 돌아가기
-
+      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Upload failed: $e')),
       );
     }
-
     setState(() => _isUploading = false);
   }
 
