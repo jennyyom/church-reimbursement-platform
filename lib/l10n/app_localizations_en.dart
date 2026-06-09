@@ -43,4 +43,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reject => 'Reject';
+
+  @override
+  String get appTitle => 'Church Reimbursement';
+
+  @override
+  String get approverDashboard => 'Approver Dashboard';
+
+  @override
+  String get adminDashboard => 'Admin Dashboard';
+
+  @override
+  String get reviewReceipts => 'Please review receipts pending approval.';
+
+  @override
+  String get manageReimbursements => 'Manage and oversee all reimbursements.';
 }

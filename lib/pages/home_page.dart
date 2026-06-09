@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'upload_page.dart';
 import '../main.dart';
+import 'package:church_reimbursement/l10n/app_localizations.dart';
 
 // User 화면 (영수증 제출)
 class UserHomePage extends StatelessWidget {
@@ -11,7 +12,7 @@ class UserHomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.indigo.shade50,
       appBar: AppBar(
-        title: const Text('Church Reimbursement'),
+        title: Text(AppLocalizations.of(context)!.appTitle),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
@@ -60,7 +61,7 @@ class UserHomePage extends StatelessWidget {
       );
     },
     icon: const Icon(Icons.receipt_long),
-    label: const Text('Submit Receipt'),
+    label: Text(AppLocalizations.of(context)!.submitReceipt),
   ),
 ),
     );
@@ -76,7 +77,7 @@ class ApproverHomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.orange.shade50,
       appBar: AppBar(
-        title: const Text('Approver Dashboard'),
+        title: Text(AppLocalizations.of(context)!.approverDashboard),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: [
@@ -116,11 +117,11 @@ class ApproverHomePage extends StatelessWidget {
 ),
         ],
       ),
-      body: const Center(
+      body: Center(
         child: Text(
-          'Please review receipts pending approval.',
+          AppLocalizations.of(context)!.reviewReceipts,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 24),
+          style: const TextStyle(fontSize: 24),
         ),
       ),
     );
@@ -136,7 +137,7 @@ class AdminHomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.red.shade50,
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: Text(AppLocalizations.of(context)!.adminDashboard),
         backgroundColor: Colors.red,
         foregroundColor: Colors.white,
         actions: [
@@ -176,9 +177,9 @@ class AdminHomePage extends StatelessWidget {
 ),
         ],
       ),
-      body: const Center(
+      body: Center(
         child: Text(
-          'Manage and oversee all reimbursements.',
+          AppLocalizations.of(context)!.manageReimbursements,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 24),
         ),

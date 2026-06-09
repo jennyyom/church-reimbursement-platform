@@ -43,4 +43,19 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get reject => '거절';
+
+  @override
+  String get appTitle => '교회 경비 정산';
+
+  @override
+  String get approverDashboard => '승인자 대시보드';
+
+  @override
+  String get adminDashboard => '관리자 대시보드';
+
+  @override
+  String get reviewReceipts => '승인 대기 중인 영수증을 검토해주세요.';
+
+  @override
+  String get manageReimbursements => '전체 정산 내역을 관리합니다.';
 }

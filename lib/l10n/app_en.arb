@@ -11,5 +11,11 @@
   "approved": "Approved",
   "rejected": "Rejected",
   "approve": "Approve",
-  "reject": "Reject"
+  "reject": "Reject",
+
+  "appTitle": "Church Reimbursement",
+  "approverDashboard": "Approver Dashboard",
+  "adminDashboard": "Admin Dashboard",
+  "reviewReceipts": "Please review receipts pending approval.",
+  "manageReimbursements": "Manage and oversee all reimbursements."
 }

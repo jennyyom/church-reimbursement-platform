@@ -11,5 +11,11 @@
   "approved": "승인됨",
   "rejected": "거절됨",
   "approve": "승인",
-  "reject": "거절"
+  "reject": "거절",
+
+  "appTitle": "교회 경비 정산",
+  "approverDashboard": "승인자 대시보드",
+  "adminDashboard": "관리자 대시보드",
+  "reviewReceipts": "승인 대기 중인 영수증을 검토해주세요.",
+  "manageReimbursements": "전체 정산 내역을 관리합니다."
 }

@@ -11,5 +11,11 @@
   "approved": "Imeidhinishwa",
   "rejected": "Imekataliwa",
   "approve": "Idhinisha",
-  "reject": "Kataa"
+  "reject": "Kataa",
+
+  "appTitle": "Malipo ya Kanisa",
+  "approverDashboard": "Dashibodi ya Mkaguzi",
+  "adminDashboard": "Dashibodi ya Msimamizi",
+  "reviewReceipts": "Tafadhali kagua risiti zinazosubiri idhini.",
+  "manageReimbursements": "Simamia na angalia malipo yote."
 }

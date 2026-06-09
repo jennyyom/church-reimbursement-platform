@@ -43,4 +43,19 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get reject => 'Kataa';
+
+  @override
+  String get appTitle => 'Malipo ya Kanisa';
+
+  @override
+  String get approverDashboard => 'Dashibodi ya Mkaguzi';
+
+  @override
+  String get adminDashboard => 'Dashibodi ya Msimamizi';
+
+  @override
+  String get reviewReceipts => 'Tafadhali kagua risiti zinazosubiri idhini.';
+
+  @override
+  String get manageReimbursements => 'Simamia na angalia malipo yote.';
 }
