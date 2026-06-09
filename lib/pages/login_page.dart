@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';   //firebase 로그인 기능 가져오기
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_page.dart'; // UserHomePage, ApproverHomePage, AdminHomePage 있는 파일
+import 'signup_page.dart';
 
 //StatefulWidget 상태 변화가 있는 화면(입력값 로딩등) 원래는 StatelessWidget였음
 class LoginPage extends StatefulWidget {
@@ -104,6 +105,17 @@ class _LoginPageState extends State<LoginPage> {
                 : ElevatedButton(
                     onPressed: _signIn,   //버튼 누르면 _signIn 실행
                     child: const Text('Sign In'),
+                  ),
+
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignupPage()),
+                      );
+                    },
+                    child: const Text("Don't have an account? Sign up"),
                   ),
           ],
         ),
