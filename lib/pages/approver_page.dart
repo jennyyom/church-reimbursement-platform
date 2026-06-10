@@ -65,61 +65,59 @@ class _ApproverPageState extends State<ApproverPage> {
     return Scaffold(
       backgroundColor: Colors.orange.shade50,
       appBar: AppBar(
-  title: Text(l10n.approverDashboard),
-  backgroundColor: Colors.orange,
-  foregroundColor: Colors.white,
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.language),
-      onPressed: () {
-        showModalBottomSheet(
-          context: context,
-          builder: (_) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('English'),
-                onTap: () {
-                  ChurchReimbursementApp.of(context)?.setLocale(const Locale('en'));
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                title: const Text('한국어'),
-                onTap: () {
-                  ChurchReimbursementApp.of(context)?.setLocale(const Locale('ko'));
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                title: const Text('Kiswahili'),
-                onTap: () {
-                  ChurchReimbursementApp.of(context)?.setLocale(const Locale('sw'));
-                  Navigator.pop(context);
-                },
-              ),
-            ],
+        title: Text(l10n.approverDashboard),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                builder: (_) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      title: const Text('English'),
+                      onTap: () {
+                        ChurchReimbursementApp.of(context)?.setLocale(const Locale('en'));
+                        Navigator.pop(context);
+                      },
+                    ),
+                    ListTile(
+                      title: const Text('한국어'),
+                      onTap: () {
+                        ChurchReimbursementApp.of(context)?.setLocale(const Locale('ko'));
+                        Navigator.pop(context);
+                      },
+                    ),
+                    ListTile(
+                      title: const Text('Kiswahili'),
+                      onTap: () {
+                        ChurchReimbursementApp.of(context)?.setLocale(const Locale('sw'));
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-        );
-      },
-    ),
-
-    //로그아웃 버튼
-    IconButton(
-      icon: const Icon(Icons.logout),
-      onPressed: () async {
-        await FirebaseAuth.instance.signOut();
-        if (!context.mounted) return;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => LoginPage()),
-          (route) => false,
-        );
-      },
-    ),
-
-  ],
-),
+          // 로그아웃 버튼
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (!context.mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => LoginPage()),
+                (route) => false,
+              );
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
         // pending 영수증만 실시간으로 가져오기
         stream: FirebaseFirestore.instance
@@ -157,28 +155,83 @@ class _ApproverPageState extends State<ApproverPage> {
                     ),
                     Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 승인 버튼
-                          ElevatedButton.icon(
-                            onPressed: () => _approve(expense.id),
-                            icon: const Icon(Icons.check),
-                            label: Text(l10n.approve),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
+                          // 제출자 이름
+                          if (expense.userName != null)
+                            Row(
+                              children: [
+                                const Icon(Icons.person, size: 16, color: Colors.blue),
+                                const SizedBox(width: 4),
+                                Text(
+                                  expense.userName!,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                              ],
                             ),
+                          const SizedBox(height: 4),
+                          // 금액
+                          if (expense.amount != null)
+                            Row(
+                              children: [
+                                const Icon(Icons.attach_money, size: 16, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '\$${expense.amount!.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          const SizedBox(height: 4),
+                          // 설명
+                          if (expense.description != null && expense.description!.isNotEmpty)
+                            Row(
+                              children: [
+                                const Icon(Icons.edit, size: 16, color: Colors.orange),
+                                const SizedBox(width: 4),
+                                Text(
+                                  expense.description!,
+                                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          const SizedBox(height: 4),
+                          // 날짜
+                          Row(
+                            children: [
+                              const Icon(Icons.calendar_today, size: 16, color: Colors.red),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${expense.createdAt.year}/${expense.createdAt.month}/${expense.createdAt.day}',
+                                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                              ),
+                            ],
                           ),
-                          // 거절 버튼
-                          ElevatedButton.icon(
-                            onPressed: () => _reject(expense.id),
-                            icon: const Icon(Icons.close),
-                            label: Text(l10n.reject),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                            ),
+                          const SizedBox(height: 12),
+                          // 승인/거절 버튼
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () => _approve(expense.id),
+                                icon: const Icon(Icons.check),
+                                label: Text(l10n.approve),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () => _reject(expense.id),
+                                icon: const Icon(Icons.close),
+                                label: Text(l10n.reject),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

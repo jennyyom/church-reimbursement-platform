@@ -66,6 +66,7 @@ class _UploadPageState extends State<UploadPage> {
         imageUrl: downloadUrl,
         amount: double.tryParse(_amountController.text.trim()), // 금액 저장
         description: _descriptionController.text.trim(),        // 설명 저장
+        userName: appUser.name, // 추가
         status: ExpenseStatus.pending,
         createdAt: DateTime.now(),
       );

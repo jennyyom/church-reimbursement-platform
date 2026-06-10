@@ -10,6 +10,7 @@ class Expense {
   final double? amount;
   final String? description;
   final String? departmentId; // 나중에 부서 기능용, 지금은 null
+  final String? userName;     // 제출자 이름
   final ExpenseStatus status;
   final DateTime createdAt;
 
@@ -21,6 +22,7 @@ class Expense {
     this.amount,
     this.description,
     this.departmentId,
+    this.userName,
     required this.status,
     required this.createdAt,
   });
@@ -35,6 +37,7 @@ class Expense {
       amount: (data['amount'] as num?)?.toDouble(),
       description: data['description'],
       departmentId: data['departmentId'],
+      userName: data['userName'],
       status: ExpenseStatus.values.firstWhere(
         (e) => e.name == data['status'],
         orElse: () => ExpenseStatus.pending,
@@ -51,6 +54,7 @@ class Expense {
       'amount': amount,
       'description': description,
       'departmentId': departmentId,
+      'userName': userName,
       'status': status.name,
       'createdAt': FieldValue.serverTimestamp(),
     };
