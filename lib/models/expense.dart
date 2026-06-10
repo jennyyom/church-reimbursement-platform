@@ -15,6 +15,7 @@ class Expense {
   final DateTime createdAt;
   final String? approvedBy;   // 승인/거절한 사람 이름
   final DateTime? approvedAt; // 승인/거절 날짜
+  final String? rejectReason; // 거절 이유
 
   Expense({
     required this.id,
@@ -25,8 +26,9 @@ class Expense {
     this.description,
     this.departmentId,
     this.userName,
-    this.approvedBy,   // ← 추가
-    this.approvedAt,   // ← 추가
+    this.approvedBy,   // 추가
+    this.approvedAt,   // 추가
+    this.rejectReason,
     required this.status,
     required this.createdAt,
   });
@@ -42,6 +44,7 @@ class Expense {
       description: data['description'],
       departmentId: data['departmentId'],
       userName: data['userName'],
+      rejectReason: data['rejectReason'],
       approvedBy: data['approvedBy'],
       approvedAt: data['approvedAt'] != null 
           ? (data['approvedAt'] as Timestamp).toDate() 
@@ -66,6 +69,7 @@ class Expense {
       'status': status.name,
       'approvedBy': approvedBy,
       'approvedAt': approvedAt,
+      'rejectReason': rejectReason,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

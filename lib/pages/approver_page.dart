@@ -53,8 +53,41 @@ class _ApproverPageState extends State<ApproverPage> {
         });
   }
 
-  // 영수증 거절
+  // 영수증 거절 - 이유 입력 다이얼로그
   Future<void> _reject(String expenseId) async {
+    final reasonController = TextEditingController();
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject Receipt'),
+        content: TextField(
+          controller: reasonController,
+          decoration: const InputDecoration(
+            labelText: 'Reason for rejection',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final userDoc = await FirebaseFirestore.instance
         .collection('users')
@@ -69,6 +102,7 @@ class _ApproverPageState extends State<ApproverPage> {
         .doc(expenseId)
         .update({
           'status': 'rejected',
+          'rejectReason': reasonController.text.trim(),
           'approvedBy': approverName,
           'approvedAt': FieldValue.serverTimestamp(),
         });
