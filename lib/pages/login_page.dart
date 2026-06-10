@@ -47,8 +47,14 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
 
-      // 4. role 값 읽기 (없으면 'member' 기본값)
-      final role = doc.exists ? doc['role'] : 'member';
+      // 4. role 값 읽기/수정: set() 이후 다시 get() 하거나, 그냥 default 사용
+      String role = 'member';
+      if (doc.exists) {
+        role = doc['role'] ?? 'member';
+      } else {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({...});
+        // role은 이미 'member'로 초기화됨 — 재조회 불필요
+      }
 
       // 5. role에 따라 화면 이동
       if (!mounted) return;
@@ -63,13 +69,14 @@ class _LoginPageState extends State<LoginPage> {
             MaterialPageRoute(builder: (_) => UserHomePage()));
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: $e')),
-      );
-    }
-    setState(() => _isLoading = false);
-  }
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Login failed: $e')),
+  );
+} finally {
+  if (mounted) setState(() => _isLoading = false);  // 성공/실패 상관없이 항상 실행
+}
+// ← setState 여기서 제거
 
   @override
   Widget build(BuildContext context) {

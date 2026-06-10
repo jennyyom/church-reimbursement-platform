@@ -1,96 +1,88 @@
 # Church Reimbursement Platform
 
-A cross-platform expense and reimbursement management system designed for churches and nonprofit organizations.
+> Expense reimbursement and receipt management built for churches and nonprofits.
 
-Built with Flutter and Firebase, supporting Web, Android, and iOS.
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=flat&logo=flutter&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=flat&logo=firebase&logoColor=black)
+![Dart](https://img.shields.io/badge/Dart-0175C2?style=flat&logo=dart&logoColor=white)
 
 ---
 
-## Key Features
+## Why
 
-### Receipt Processing
-- Capture or upload receipt images
-- OCR-based text extraction (planned)
-- Automatic detection of amount, date, and vendor
+Church finance teams still manage reimbursements with paper receipts, email threads, and spreadsheets. This app replaces that workflow with receipt scanning, AI-assisted parsing, and a structured approval process — designed to work across the US and Tanzania.
 
-### Expense Management
-- Submit reimbursement requests
-- Ministry / fund categorization
-- Attach receipts and notes
-- Track submission history
+---
 
-### Approval Workflow
-- Admin approval and rejection flow
-- Status tracking (Pending / Approved / Rejected)
-- Role-based access control (planned)
+## Screenshots
 
-### Reporting
-- CSV / Excel export for accounting
-- Monthly summaries
-- Audit-friendly records
+> Coming soon — MVP in progress.
+
+<!-- Add screenshots/GIFs here once available
+![Login Screen](docs/screenshots/login.png)
+![Expense Submission](docs/screenshots/expense.png)
+![Admin Dashboard](docs/screenshots/admin.png)
+-->
+
+---
+
+## Features
+
+| Feature | Description |
+|---|---|
+| Receipt Scanning | Upload receipts via mobile camera with OCR extraction |
+| AI Parsing | Automatic amount, date, and vendor detection |
+| Expense Submission | Categorize by ministry or fund with notes and attachments |
+| Approval Workflow | Admin approve/reject dashboard with audit trail |
+| Export | CSV and Excel export for accounting integration |
+| Localization | English, 한국어, Kiswahili |
 
 ---
 
 ## Tech Stack
 
-- Flutter
-- Firebase
-- Firebase Authentication
-- Cloud Firestore
-- Firebase Storage
-- Google ML Kit (planned for OCR)
-- LLM API (planned for AI parsing)
+| Layer | Technology |
+|---|---|
+| Frontend | Flutter (iOS, Android, Web) |
+| Backend | Firebase (Firestore, Auth, Storage, Functions) |
+| OCR | Google ML Kit / Vision API |
+| AI Parsing | LLM API |
+| Hosting | Firebase Hosting |
 
 ---
 
-## Architecture
+## Installation
 
-Receipt Upload → OCR Processing → Data Structuring → Approval Workflow → Export / Reporting
+```bash
+git clone https://github.com/your-repo/church-reimbursement-platform.git
+cd church-reimbursement-platform
+flutter pub get
+flutter run
+```
 
----
+Create a `.env` file:
 
-## Project Goals
-
-- Eliminate paper-based reimbursement workflows
-- Reduce manual accounting work
-- Improve financial transparency
-- Provide a simple expense system for churches
-
----
-
-## Security
-
-- Firebase Authentication
-- Firestore security rules
-- Secure cloud storage
-- HTTPS communication
+```
+FIREBASE_API_KEY=
+FIREBASE_PROJECT_ID=
+VISION_API_KEY=
+LLM_API_KEY=
+```
 
 ---
 
 ## Roadmap
 
-### MVP
-- Authentication
-- Receipt upload
-- Expense submission
-- Admin approval
-
-### Enhancement
-- Notifications
-- UI improvements
-- Error handling
-
-### Expansion
-- Multi-church support
-- Accounting integrations
-- Analytics dashboard
+- [x] Authentication + role-based routing (admin / approver / member)
+- [x] Localization (EN / KO / SW)
+- [ ] Receipt upload + OCR
+- [ ] Expense submission
+- [ ] Admin approval dashboard
+- [ ] Reporting & export
+- [ ] Planning Center / QuickBooks integration
 
 ---
 
-## Setup
+## License
 
-```bash
-git clone https://github.com/jennyyom/church-reimbursement-platform.git
-cd church-reimbursement-platform
-flutter pub get
-flutter run
+MIT
