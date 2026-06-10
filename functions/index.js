@@ -33,7 +33,7 @@ exports.processReceipt = onObjectFinalized(async (event) => {
       .collectionGroup("expenses")
       .where("uid", "==", uid)
       .orderBy("createdAt", "desc")
-      .limit(1)q
+      .limit(1)
       .get();
 
     if (!snapshot.empty) {
