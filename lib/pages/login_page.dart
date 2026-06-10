@@ -5,6 +5,7 @@ import 'package:church_reimbursement/l10n/app_localizations.dart'; // 번역 추
 import 'home_page.dart';   // UserHomePage, ApproverHomePage, AdminHomePage
 import 'signup_page.dart';
 import '../main.dart';
+import 'approver_page.dart';
 
 // StatefulWidget - 상태 변화가 있는 화면 (입력값, 로딩 등)
 class LoginPage extends StatefulWidget {
@@ -56,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
             MaterialPageRoute(builder: (_) => AdminHomePage()));
       } else if (role == 'approver') {
         Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => ApproverHomePage()));
+            MaterialPageRoute(builder: (_) => const ApproverPage()));
       } else {
         Navigator.pushReplacement(context,
             MaterialPageRoute(builder: (_) => UserHomePage()));
