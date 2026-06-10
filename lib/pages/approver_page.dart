@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:church_reimbursement/l10n/app_localizations.dart';
 import '../models/expense.dart';
+import '../main.dart';
 
 class ApproverPage extends StatefulWidget {
   const ApproverPage({super.key});
@@ -63,10 +64,46 @@ class _ApproverPageState extends State<ApproverPage> {
     return Scaffold(
       backgroundColor: Colors.orange.shade50,
       appBar: AppBar(
-        title: Text(l10n.approverDashboard),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-      ),
+  title: Text(l10n.approverDashboard),
+  backgroundColor: Colors.orange,
+  foregroundColor: Colors.white,
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.language),
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          builder: (_) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('English'),
+                onTap: () {
+                  ChurchReimbursementApp.of(context)?.setLocale(const Locale('en'));
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: const Text('한국어'),
+                onTap: () {
+                  ChurchReimbursementApp.of(context)?.setLocale(const Locale('ko'));
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: const Text('Kiswahili'),
+                onTap: () {
+                  ChurchReimbursementApp.of(context)?.setLocale(const Locale('sw'));
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  ],
+),
       body: StreamBuilder<QuerySnapshot>(
         // pending 영수증만 실시간으로 가져오기
         stream: FirebaseFirestore.instance
