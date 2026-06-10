@@ -24,7 +24,7 @@ class AppLocalizationsSw extends AppLocalizations {
   String get date => 'Tarehe';
 
   @override
-  String get description => 'Maelezo';
+  String get description => 'Maelezo (si lazima)';
 
   @override
   String get category => 'Aina';

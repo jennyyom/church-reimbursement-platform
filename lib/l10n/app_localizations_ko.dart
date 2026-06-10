@@ -24,7 +24,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get date => '날짜';
 
   @override
-  String get description => '설명';
+  String get description => '설명 (선택사항)';
 
   @override
   String get category => '카테고리';

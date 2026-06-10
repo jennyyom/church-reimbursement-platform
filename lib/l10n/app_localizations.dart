@@ -133,7 +133,7 @@ abstract class AppLocalizations {
   /// No description provided for @description.
   ///
   /// In en, this message translates to:
-  /// **'Description'**
+  /// **'Description (optional)'**
   String get description;
 
   /// No description provided for @category.

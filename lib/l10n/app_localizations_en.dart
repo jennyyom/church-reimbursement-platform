@@ -24,7 +24,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get date => 'Date';
 
   @override
-  String get description => 'Description';
+  String get description => 'Description (optional)';
 
   @override
   String get category => 'Category';

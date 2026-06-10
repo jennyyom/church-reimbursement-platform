@@ -32,5 +32,8 @@
   "submitReceiptTitle": "Submit Receipt",
   "noImageSelected": "No image selected",
   "invalidInviteCode": "Invalid invite code",
-  "signupFailed": "Signup failed" 
+  "signupFailed": "Signup failed",
+
+  "amount": "Amount",
+  "description": "Description (optional)"
 }

@@ -32,5 +32,8 @@
   "submitReceiptTitle": "Wasilisha Risiti",
   "noImageSelected": "Hakuna picha iliyochaguliwa",
   "invalidInviteCode": "Nambari ya mwaliko si sahihi",
-  "signupFailed": "Usajili umeshindwa"
+  "signupFailed": "Usajili umeshindwa",
+
+  "amount": "Kiasi",
+  "description": "Maelezo (si lazima)"
 }
