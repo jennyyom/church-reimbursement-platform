@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:church_reimbursement/l10n/app_localizations.dart';
 import '../models/expense.dart';
 import '../main.dart';
+import 'login_page.dart';
 
 class ApproverPage extends StatefulWidget {
   const ApproverPage({super.key});
@@ -102,6 +103,21 @@ class _ApproverPageState extends State<ApproverPage> {
         );
       },
     ),
+
+    //로그아웃 버튼
+    IconButton(
+      icon: const Icon(Icons.logout),
+      onPressed: () async {
+        await FirebaseAuth.instance.signOut();
+        if (!context.mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => LoginPage()),
+          (route) => false,
+        );
+      },
+    ),
+
   ],
 ),
       body: StreamBuilder<QuerySnapshot>(
