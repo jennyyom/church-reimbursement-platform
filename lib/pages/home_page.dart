@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'upload_page.dart';
 import '../main.dart';
 import 'package:church_reimbursement/l10n/app_localizations.dart';
+import 'login_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // User 화면 (영수증 제출)
 class UserHomePage extends StatelessWidget {
@@ -50,6 +52,21 @@ class UserHomePage extends StatelessWidget {
     );
   },
 ),
+
+          //로그아웃 버튼
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (!context.mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (route) => false,
+              );
+            },
+          ),
+
         ],
       ),
       body: Center(
@@ -115,6 +132,21 @@ class ApproverHomePage extends StatelessWidget {
     );
   },
 ),
+
+          //로그아웃 버튼
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (!context.mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (route) => false,
+              );
+            },
+          ),
+
         ],
       ),
       body: Center(
@@ -175,6 +207,21 @@ class AdminHomePage extends StatelessWidget {
     );
   },
 ),
+
+          //로그아웃 버튼
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (!context.mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (route) => false,
+              );
+            },
+          ),
+
         ],
       ),
       body: Center(
