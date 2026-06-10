@@ -58,4 +58,46 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get manageReimbursements => 'Simamia na angalia malipo yote.';
+
+  @override
+  String get email => 'Barua pepe';
+
+  @override
+  String get password => 'Nywila';
+
+  @override
+  String get signInTitle => 'Ingia';
+
+  @override
+  String get noAccount => 'Huna akaunti? Jisajili';
+
+  @override
+  String get createAccount => 'Fungua Akaunti';
+
+  @override
+  String get name => 'Jina';
+
+  @override
+  String get inviteCode => 'Nambari ya Mwaliko';
+
+  @override
+  String get selectImage => 'Chagua Picha';
+
+  @override
+  String get uploadFailed => 'Imeshindwa kupakia';
+
+  @override
+  String get receiptSubmitted => 'Risiti imewasilishwa!';
+
+  @override
+  String get submitReceiptTitle => 'Wasilisha Risiti';
+
+  @override
+  String get noImageSelected => 'Hakuna picha iliyochaguliwa';
+
+  @override
+  String get invalidInviteCode => 'Nambari ya mwaliko si sahihi';
+
+  @override
+  String get signupFailed => 'Usajili umeshindwa';
 }

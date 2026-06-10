@@ -17,5 +17,20 @@
   "approverDashboard": "승인자 대시보드",
   "adminDashboard": "관리자 대시보드",
   "reviewReceipts": "승인 대기 중인 영수증을 검토해주세요.",
-  "manageReimbursements": "전체 정산 내역을 관리합니다."
+  "manageReimbursements": "전체 정산 내역을 관리합니다.",
+
+  "email": "이메일",
+  "password": "비밀번호",
+  "signInTitle": "로그인",
+  "noAccount": "계정이 없으신가요? 회원가입",
+  "createAccount": "계정 만들기",
+  "name": "이름",
+  "inviteCode": "초대 코드",
+  "selectImage": "이미지 선택",
+  "uploadFailed": "업로드 실패",
+  "receiptSubmitted": "영수증이 제출되었습니다!",
+  "submitReceiptTitle": "영수증 제출",
+  "noImageSelected": "이미지가 선택되지 않았습니다",
+  "invalidInviteCode": "잘못된 초대 코드입니다",
+  "signupFailed": "회원가입 실패"
 }

@@ -17,5 +17,20 @@
   "approverDashboard": "Approver Dashboard",
   "adminDashboard": "Admin Dashboard",
   "reviewReceipts": "Please review receipts pending approval.",
-  "manageReimbursements": "Manage and oversee all reimbursements."
+  "manageReimbursements": "Manage and oversee all reimbursements.",
+
+  "email": "Email",
+  "password": "Password",
+  "signInTitle": "Sign In",
+  "noAccount": "Don't have an account? Sign up",
+  "createAccount": "Create Account",
+  "name": "Name",
+  "inviteCode": "Invite Code",
+  "selectImage": "Select Image",
+  "uploadFailed": "Upload failed",
+  "receiptSubmitted": "Receipt submitted successfully!",
+  "submitReceiptTitle": "Submit Receipt",
+  "noImageSelected": "No image selected",
+  "invalidInviteCode": "Invalid invite code",
+  "signupFailed": "Signup failed" 
 }

@@ -17,5 +17,20 @@
   "approverDashboard": "Dashibodi ya Mkaguzi",
   "adminDashboard": "Dashibodi ya Msimamizi",
   "reviewReceipts": "Tafadhali kagua risiti zinazosubiri idhini.",
-  "manageReimbursements": "Simamia na angalia malipo yote."
+  "manageReimbursements": "Simamia na angalia malipo yote.",
+
+  "email": "Barua pepe",
+  "password": "Nywila",
+  "signInTitle": "Ingia",
+  "noAccount": "Huna akaunti? Jisajili",
+  "createAccount": "Fungua Akaunti",
+  "name": "Jina",
+  "inviteCode": "Nambari ya Mwaliko",
+  "selectImage": "Chagua Picha",
+  "uploadFailed": "Imeshindwa kupakia",
+  "receiptSubmitted": "Risiti imewasilishwa!",
+  "submitReceiptTitle": "Wasilisha Risiti",
+  "noImageSelected": "Hakuna picha iliyochaguliwa",
+  "invalidInviteCode": "Nambari ya mwaliko si sahihi",
+  "signupFailed": "Usajili umeshindwa"
 }

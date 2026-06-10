@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:church_reimbursement/l10n/app_localizations.dart'; // 번역 추가
 import 'dart:typed_data';
 import '../models/expense.dart';
 import '../models/app_user.dart';
@@ -73,12 +74,13 @@ class _UploadPageState extends State<UploadPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Receipt submitted successfully!')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.receiptSubmitted)), // 번역 적용
       );
       Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
+        SnackBar(content: Text('${AppLocalizations.of(context)!.uploadFailed}: $e')), // 번역 적용
       );
     }
     setState(() => _isUploading = false);
@@ -86,10 +88,11 @@ class _UploadPageState extends State<UploadPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!; // 번역 키 접근용
     return Scaffold(
       backgroundColor: Colors.indigo.shade50,
       appBar: AppBar(
-        title: const Text('Submit Receipt'),
+        title: Text(l10n.submitReceiptTitle), // 번역 적용
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
       ),
@@ -104,8 +107,8 @@ class _UploadPageState extends State<UploadPage> {
                 : Container(
                     height: 300,
                     color: Colors.grey.shade200,
-                    child: const Center(
-                      child: Text('No image selected'),
+                    child: Center(
+                      child: Text(l10n.noImageSelected), // 번역 적용
                     ),
                   ),
             const SizedBox(height: 24),
@@ -114,7 +117,7 @@ class _UploadPageState extends State<UploadPage> {
             ElevatedButton.icon(
               onPressed: _pickImage,
               icon: const Icon(Icons.photo_library),
-              label: const Text('Select Image'),
+              label: Text(l10n.selectImage), // 번역 적용
             ),
             const SizedBox(height: 16),
 
@@ -124,7 +127,7 @@ class _UploadPageState extends State<UploadPage> {
                 : ElevatedButton.icon(
                     onPressed: _imageBytes != null ? _uploadReceipt : null,
                     icon: const Icon(Icons.upload),
-                    label: const Text('Submit Receipt'),
+                    label: Text(l10n.submitReceipt), // 번역 적용
                   ),
           ],
         ),

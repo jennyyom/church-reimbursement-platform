@@ -58,4 +58,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get manageReimbursements => 'Manage and oversee all reimbursements.';
+
+  @override
+  String get email => 'Email';
+
+  @override
+  String get password => 'Password';
+
+  @override
+  String get signInTitle => 'Sign In';
+
+  @override
+  String get noAccount => 'Don\'t have an account? Sign up';
+
+  @override
+  String get createAccount => 'Create Account';
+
+  @override
+  String get name => 'Name';
+
+  @override
+  String get inviteCode => 'Invite Code';
+
+  @override
+  String get selectImage => 'Select Image';
+
+  @override
+  String get uploadFailed => 'Upload failed';
+
+  @override
+  String get receiptSubmitted => 'Receipt submitted successfully!';
+
+  @override
+  String get submitReceiptTitle => 'Submit Receipt';
+
+  @override
+  String get noImageSelected => 'No image selected';
+
+  @override
+  String get invalidInviteCode => 'Invalid invite code';
+
+  @override
+  String get signupFailed => 'Signup failed';
 }

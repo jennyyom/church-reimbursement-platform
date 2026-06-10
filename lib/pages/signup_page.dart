@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_reimbursement/l10n/app_localizations.dart'; // 번역 추가
 import '../models/app_user.dart';
 
 class SignupPage extends StatefulWidget {
@@ -30,7 +31,7 @@ class _SignupPageState extends State<SignupPage> {
       if (churchQuery.docs.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid invite code')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.invalidInviteCode)),
         );
         setState(() => _isLoading = false);
         return;
@@ -63,14 +64,14 @@ class _SignupPageState extends State<SignupPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created successfully!')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.receiptSubmitted)),
       );
       Navigator.pop(context); // 로그인 페이지로 돌아가기
 
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Signup failed: $e')),
+        SnackBar(content: Text('${AppLocalizations.of(context)!.signupFailed}: $e')),
       );
     }
     setState(() => _isLoading = false);
@@ -78,10 +79,11 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!; // 번역 키 접근용
     return Scaffold(
       backgroundColor: Colors.indigo.shade50,
       appBar: AppBar(
-        title: const Text('Create Account'),
+        title: Text(l10n.createAccount), // 번역 적용
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
       ),
@@ -92,34 +94,34 @@ class _SignupPageState extends State<SignupPage> {
           children: [
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.name, // 번역 적용
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.email, // 번역 적용
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.password, // 번역 적용
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _inviteCodeController,
-              decoration: const InputDecoration(
-                labelText: 'Invite Code',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.inviteCode, // 번역 적용
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 24),
@@ -127,7 +129,7 @@ class _SignupPageState extends State<SignupPage> {
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _signUp,
-                    child: const Text('Create Account'),
+                    child: Text(l10n.createAccount), // 번역 적용
                   ),
           ],
         ),

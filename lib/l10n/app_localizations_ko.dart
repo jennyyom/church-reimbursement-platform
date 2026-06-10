@@ -58,4 +58,46 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get manageReimbursements => '전체 정산 내역을 관리합니다.';
+
+  @override
+  String get email => '이메일';
+
+  @override
+  String get password => '비밀번호';
+
+  @override
+  String get signInTitle => '로그인';
+
+  @override
+  String get noAccount => '계정이 없으신가요? 회원가입';
+
+  @override
+  String get createAccount => '계정 만들기';
+
+  @override
+  String get name => '이름';
+
+  @override
+  String get inviteCode => '초대 코드';
+
+  @override
+  String get selectImage => '이미지 선택';
+
+  @override
+  String get uploadFailed => '업로드 실패';
+
+  @override
+  String get receiptSubmitted => '영수증이 제출되었습니다!';
+
+  @override
+  String get submitReceiptTitle => '영수증 제출';
+
+  @override
+  String get noImageSelected => '이미지가 선택되지 않았습니다';
+
+  @override
+  String get invalidInviteCode => '잘못된 초대 코드입니다';
+
+  @override
+  String get signupFailed => '회원가입 실패';
 }
