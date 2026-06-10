@@ -32,7 +32,6 @@ exports.processReceipt = onObjectFinalized(async (event) => {
     const snapshot = await db
       .collectionGroup("expenses")
       .where("uid", "==", uid)
-      .where("imageUrl", "!=", "")
       .orderBy("createdAt", "desc")
       .limit(1)
       .get();
