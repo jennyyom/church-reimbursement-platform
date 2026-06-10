@@ -13,6 +13,8 @@ class Expense {
   final String? userName;     // 제출자 이름
   final ExpenseStatus status;
   final DateTime createdAt;
+  final String? approvedBy;   // 승인/거절한 사람 이름
+  final DateTime? approvedAt; // 승인/거절 날짜
 
   Expense({
     required this.id,
@@ -23,6 +25,8 @@ class Expense {
     this.description,
     this.departmentId,
     this.userName,
+    this.approvedBy,   // ← 추가
+    this.approvedAt,   // ← 추가
     required this.status,
     required this.createdAt,
   });
@@ -38,6 +42,10 @@ class Expense {
       description: data['description'],
       departmentId: data['departmentId'],
       userName: data['userName'],
+      approvedBy: data['approvedBy'],
+      approvedAt: data['approvedAt'] != null 
+          ? (data['approvedAt'] as Timestamp).toDate() 
+          : null,
       status: ExpenseStatus.values.firstWhere(
         (e) => e.name == data['status'],
         orElse: () => ExpenseStatus.pending,
@@ -56,6 +64,8 @@ class Expense {
       'departmentId': departmentId,
       'userName': userName,
       'status': status.name,
+      'approvedBy': approvedBy,
+      'approvedAt': approvedAt,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }

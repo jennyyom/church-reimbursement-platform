@@ -34,22 +34,44 @@ class _ApproverPageState extends State<ApproverPage> {
 
   // 영수증 승인
   Future<void> _approve(String expenseId) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    final approverName = userDoc['name'];
+
     await FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
         .collection('expenses')
         .doc(expenseId)
-        .update({'status': 'approved'});
+        .update({
+          'status': 'approved',
+          'approvedBy': approverName,
+          'approvedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   // 영수증 거절
   Future<void> _reject(String expenseId) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    final approverName = userDoc['name'];
+
     await FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
         .collection('expenses')
         .doc(expenseId)
-        .update({'status': 'rejected'});
+        .update({
+          'status': 'rejected',
+          'approvedBy': approverName,
+          'approvedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   @override
