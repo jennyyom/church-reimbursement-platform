@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // kIsWeb — 웹/앱 감지
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_reimbursement/l10n/app_localizations.dart';
@@ -6,6 +7,7 @@ import 'home_page.dart';
 import 'signup_page.dart';
 import '../main.dart';
 import 'approver_page.dart';
+import 'admin_page.dart'; // Admin 페이지 (웹 전용)
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _obscurePassword = true;
+  bool _obscurePassword = true; // 비밀번호 보이기/숨기기
 
   @override
   void dispose() {
@@ -30,29 +32,49 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _signIn() async {
     setState(() => _isLoading = true);
     try {
+      // 1. Firebase Auth 로그인
       final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
+      // 2. Firestore에서 유저 문서 조회
       final uid = credential.user!.uid;
       final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
       final doc = await docRef.get();
 
+      // 3. Firestore 문서 없으면 회원가입 안 한 계정
       if (!doc.exists) {
-        await docRef.set({
-          'email': _emailController.text.trim(),
-          'role': 'member',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account not found. Please sign up first.')),
+        );
+        setState(() => _isLoading = false);
+        return;
       }
 
-      final role = doc.exists ? (doc.data()?['role'] ?? 'member') : 'member';
+      // 4. role 읽기
+      final role = doc.data()?['role'] ?? 'member';
 
       if (!mounted) return;
+
+      // 5. role에 따라 페이지 이동
       if (role == 'admin') {
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => UserHomePage()));
+        // Admin은 웹에서만 접근 가능
+        if (kIsWeb) {
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (_) => const AdminPage()));
+        } else {
+          // 앱에서 admin으로 로그인하면 로그아웃 + 안내
+          await FirebaseAuth.instance.signOut();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Admin access is only available on web.'),
+            ),
+          );
+        }
       } else if (role == 'approver') {
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (_) => const ApproverPage()));
@@ -70,7 +92,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // 언어 선택 바텀시트 (공통)
+  // 언어 선택 바텀시트
   void _showLanguagePicker() {
     showModalBottomSheet(
       context: context,
@@ -103,7 +125,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // 공통 폼 위젯
+  // 공통 폼 — 모바일/웹 둘 다 사용
   Widget _buildForm(BuildContext context, {bool isWeb = false}) {
     final l10n = AppLocalizations.of(context)!;
     return Column(
@@ -111,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (isWeb) ...[
-          // 웹: 폼 상단에 로고 + 타이틀
+          // 웹: 로고 + 타이틀
           const Icon(Icons.church, size: 40, color: Colors.indigo),
           const SizedBox(height: 8),
           const Text(
@@ -138,6 +160,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
           const SizedBox(height: 20),
         ],
+        // 이메일 입력
         TextField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
@@ -152,6 +175,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         const SizedBox(height: 14),
+        // 비밀번호 입력
         TextField(
           controller: _passwordController,
           obscureText: _obscurePassword,
@@ -173,6 +197,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         const SizedBox(height: 20),
+        // 로그인 버튼
         _isLoading
             ? const Center(child: CircularProgressIndicator())
             : ElevatedButton(
@@ -191,6 +216,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
         const SizedBox(height: 12),
+        // 회원가입 이동
         Center(
           child: TextButton(
             onPressed: () => Navigator.push(
@@ -224,7 +250,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 언어 버튼 (우측 상단)
+                  // 언어 버튼 우측 상단
                   Align(
                     alignment: Alignment.topRight,
                     child: Padding(
@@ -237,6 +263,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const Spacer(),
+                  // 교회 아이콘
                   Container(
                     width: 64,
                     height: 64,
@@ -269,7 +296,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          // 하단 흰색 바텀시트
+          // 하단 흰색 바텀시트 폼
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -286,7 +313,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // 웹/태블릿 레이아웃 — 가운데 카드
+  // 웹 레이아웃 — 가운데 카드
   Widget _buildWebLayout(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.indigo.shade50,
@@ -321,9 +348,9 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 600px 기준으로 모바일/웹 분기
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 600px 기준으로 모바일/웹 분기
         if (constraints.maxWidth < 600) {
           return _buildMobileLayout(context);
         } else {
