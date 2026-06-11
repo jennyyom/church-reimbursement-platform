@@ -7,8 +7,11 @@ import 'package:church_reimbursement/l10n/app_localizations.dart';
 import 'dart:typed_data';
 import '../models/expense.dart';
 import '../models/app_user.dart';
-import 'package:flutter/foundation.dart'; // kIsWeb
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:flutter/foundation.dart'; // kIsWeb 체크용
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; // 앱 OCR
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // .env API 키
+import 'package:http/http.dart' as http; // Vision API 호출
+import 'dart:convert'; // base64, jsonEncode
 
 class UploadPage extends StatefulWidget {
   const UploadPage({super.key});
@@ -24,26 +27,70 @@ class _UploadPageState extends State<UploadPage> {
   final _descriptionController = TextEditingController(); // 설명 입력
 
   // 이미지 선택 + OCR 텍스트 추출
-Future<void> _pickImage() async {
-  final picker = ImagePicker();
-  final picked = await picker.pickImage(source: ImageSource.gallery);
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
 
-  if (picked != null) {
-    final bytes = await picked.readAsBytes();
-    setState(() => _imageBytes = bytes);
+    if (picked != null) {
+      final bytes = await picked.readAsBytes();
+      setState(() => _imageBytes = bytes);
 
-    // OCR 실행
-    if (!kIsWeb) {
-      final inputImage = InputImage.fromFilePath(picked.path);
-      final recognizer = TextRecognizer();
-      final result = await recognizer.processImage(inputImage);
-      await recognizer.close();
+      // 앱(iOS/Android)에서는 ML Kit OCR 사용 — 온디바이스, 무료
+      if (!kIsWeb) {
+        final inputImage = InputImage.fromFilePath(picked.path);
+        final recognizer = TextRecognizer();
+        final result = await recognizer.processImage(inputImage);
+        await recognizer.close();
 
-      // 금액 찾기 (정규식)
+        // 금액 찾기 (정규식) — 가장 큰 금액을 total로 가정
+        final amountRegex = RegExp(r'\$?\d+\.\d{2}');
+        final matches = amountRegex.allMatches(result.text);
+        if (matches.isNotEmpty) {
+          double maxAmount = 0;
+          for (final match in matches) {
+            final str = match.group(0)!.replaceAll('\$', '');
+            final val = double.tryParse(str) ?? 0;
+            if (val > maxAmount) maxAmount = val;
+          }
+          setState(() => _amountController.text = maxAmount.toStringAsFixed(2));
+        }
+      }
+
+      // 웹에서는 Google Cloud Vision API 사용
+      if (kIsWeb) {
+        await _extractAmountFromImage(bytes);
+      }
+    }
+  }
+
+  // Google Cloud Vision API로 영수증에서 금액 추출 (웹 전용)
+  Future<void> _extractAmountFromImage(Uint8List imageBytes) async {
+    try {
+      // .env에서 API 키 가져오기
+      final apiKey = dotenv.env['GOOGLE_VISION_API_KEY'] ?? '';
+      final base64Image = base64Encode(imageBytes);
+
+      // Vision API 호출
+      final response = await http.post(
+        Uri.parse('https://vision.googleapis.com/v1/images:annotate?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'requests': [
+            {
+              'image': {'content': base64Image},
+              'features': [{'type': 'TEXT_DETECTION'}],
+            }
+          ]
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      final text = data['responses'][0]['fullTextAnnotation']['text'] as String;
+
+      // 금액 찾기 — 가장 큰 숫자를 total로 가정
       final amountRegex = RegExp(r'\$?\d+\.\d{2}');
-      final matches = amountRegex.allMatches(result.text);
+      final matches = amountRegex.allMatches(text);
       if (matches.isNotEmpty) {
-        // 가장 큰 금액을 total로 가정
         double maxAmount = 0;
         for (final match in matches) {
           final str = match.group(0)!.replaceAll('\$', '');
@@ -52,9 +99,10 @@ Future<void> _pickImage() async {
         }
         setState(() => _amountController.text = maxAmount.toStringAsFixed(2));
       }
+    } catch (e) {
+      debugPrint('OCR error: $e');
     }
   }
-}
 
   // Firebase Storage 업로드 + Firestore 저장
   Future<void> _uploadReceipt() async {
@@ -64,6 +112,7 @@ Future<void> _pickImage() async {
 
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
+
       // 1. 유저 정보에서 churchId 가져오기
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -74,7 +123,7 @@ Future<void> _pickImage() async {
         uid,
       );
 
-      // 2. Storage 업로드
+      // 2. Storage에 이미지 업로드
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final storageRef = FirebaseStorage.instance
           .ref()
@@ -90,7 +139,7 @@ Future<void> _pickImage() async {
         imageUrl: downloadUrl,
         amount: double.tryParse(_amountController.text.trim()), // 금액 저장
         description: _descriptionController.text.trim(),        // 설명 저장
-        userName: appUser.name, // 추가
+        userName: appUser.name,
         status: ExpenseStatus.pending,
         createdAt: DateTime.now(),
       );
@@ -142,7 +191,7 @@ Future<void> _pickImage() async {
                     ),
               const SizedBox(height: 16),
 
-              // 이미지 선택 버튼
+              // 이미지 선택 버튼 — 탭하면 갤러리 열림
               ElevatedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.photo_library),
@@ -150,7 +199,7 @@ Future<void> _pickImage() async {
               ),
               const SizedBox(height: 16),
 
-              // 금액 입력
+              // 금액 입력 — OCR로 자동 채워지거나 직접 입력
               TextField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
@@ -172,7 +221,7 @@ Future<void> _pickImage() async {
               ),
               const SizedBox(height: 24),
 
-              // 업로드 버튼
+              // 업로드 버튼 — 이미지 선택 전엔 비활성화
               _isUploading
                   ? const CircularProgressIndicator()
                   : ElevatedButton.icon(

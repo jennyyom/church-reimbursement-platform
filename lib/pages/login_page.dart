@@ -23,6 +23,31 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true; // 비밀번호 보이기/숨기기
 
   @override
+  void initState() {
+    super.initState();
+    // 이미 로그인 상태면 바로 해당 페이지로 이동
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (!doc.exists || !mounted) return;
+
+      final role = doc.data()?['role'] ?? 'member';
+      if (role == 'admin' && kIsWeb) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminPage()));
+      } else if (role == 'approver') {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ApproverPage()));
+      } else if (role == 'member') {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => UserHomePage()));
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();

@@ -5,9 +5,11 @@ import 'package:church_reimbursement/l10n/app_localizations.dart'; // 번역 파
 import 'firebase_options.dart';                              // 연결정보 가져오기
 import 'pages/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();                 // flutter 준비될 때까지 기다리기
+  await dotenv.load(fileName: ".env");                       // 추가
   await Firebase.initializeApp(                              // firebase 시작
     options: DefaultFirebaseOptions.currentPlatform,         // 플랫폼에 맞는 설정 사용
   );

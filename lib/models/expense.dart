@@ -53,7 +53,9 @@ class Expense {
         (e) => e.name == data['status'],
         orElse: () => ExpenseStatus.pending,
       ),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: data['createdAt'] != null 
+    ? (data['createdAt'] as Timestamp).toDate() 
+    : DateTime.now(),
     );
   }
 

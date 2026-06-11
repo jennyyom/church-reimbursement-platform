@@ -43,6 +43,39 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
+  // CSV 내보내기
+  Future<void> _exportCsv() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('churches')
+        .doc(_churchId)
+        .collection('expenses')
+        .get();
+
+    final rows = <String>['Name,Description,Amount,Status,Date,Approved By'];
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final date = (data['createdAt'] as dynamic)?.toDate();
+      final dateStr = date != null ? '${date.year}/${date.month}/${date.day}' : '-';
+      rows.add(
+        '${data['userName'] ?? '-'},'
+        '${data['description'] ?? '-'},'
+        '${data['amount'] ?? 0},'
+        '${data['status'] ?? '-'},'
+        '$dateStr,'
+        '${data['approvedBy'] ?? '-'}',
+      );
+    }
+
+    final csv = rows.join('\n');
+    final blob = html.Blob([csv], 'text/csv');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    html.AnchorElement(href: url)
+      ..setAttribute('download', 'expenses.csv')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
   // 사이드바 메뉴 아이템
   Widget _buildMenuItem({
     required String id,
@@ -73,7 +106,7 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
-  // Overview — 통계 4개 + 최근 내역
+  // Overview — 통계 4개 + 전체 내역
   Widget _buildOverview() {
     if (_churchId == null) return const Center(child: CircularProgressIndicator());
     return StreamBuilder<QuerySnapshot>(
@@ -88,10 +121,10 @@ class _AdminPageState extends State<AdminPage> {
 
         final docs = snapshot.data!.docs;
         final total = docs.length;
-        final pending = docs.where((d) => d['status'] == 'pending').length;
-        final approved = docs.where((d) => d['status'] == 'approved').length;
+        final pending = docs.where((d) => (d['status'] as String?) == 'pending').length;
+        final approved = docs.where((d) => (d['status'] as String?) == 'approved').length;
         final totalAmount = docs
-            .where((d) => d['status'] == 'approved')
+            .where((d) => (d['status'] as String?) == 'approved')
             .fold<double>(0, (sum, d) => sum + ((d['amount'] as num?)?.toDouble() ?? 0));
 
         return SingleChildScrollView(
@@ -114,7 +147,7 @@ class _AdminPageState extends State<AdminPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              // 최근 영수증 테이블
+              // 영수증 테이블
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -143,9 +176,10 @@ class _AdminPageState extends State<AdminPage> {
                       ),
                     ),
                     const Divider(height: 1),
-                    // 데이터 rows 
+                    // 데이터 rows
                     ...docs.map((doc) {
-                      final status = doc['status'] as String;
+                      // status null 안전 처리
+                      final status = (doc['status'] as String?) ?? 'pending';
                       final date = (doc['createdAt'] as dynamic)?.toDate();
                       Color badgeBg;
                       Color badgeText;
@@ -195,39 +229,6 @@ class _AdminPageState extends State<AdminPage> {
       },
     );
   }
-
-  // CSV 내보내기
-    Future<void> _exportCsv() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('churches')
-        .doc(_churchId)
-        .collection('expenses')
-        .get();
-
-    final rows = <String>['Name,Description,Amount,Status,Date,Approved By'];
-
-    for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final date = (data['createdAt'] as dynamic)?.toDate();
-        final dateStr = date != null ? '${date.year}/${date.month}/${date.day}' : '-';
-        rows.add(
-        '${data['userName'] ?? '-'},'
-        '${data['description'] ?? '-'},'
-        '${data['amount'] ?? 0},'
-        '${data['status'] ?? '-'},'
-        '$dateStr,'
-        '${data['approvedBy'] ?? '-'}',
-        );
-    }
-
-    final csv = rows.join('\n');
-    final blob = html.Blob([csv], 'text/csv');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.AnchorElement(href: url)
-        ..setAttribute('download', 'expenses.csv')
-        ..click();
-    html.Url.revokeObjectUrl(url);
-    }
 
   // 통계 카드
   Widget _buildStatCard(String label, String value, Color color) {
@@ -287,7 +288,7 @@ class _AdminPageState extends State<AdminPage> {
                         children: const [
                           Expanded(child: Text('Name', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Email', style: TextStyle(fontSize: 12, color: Colors.grey))),
-                          Expanded(child: Text('Role', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          SizedBox(width: 120, child: Text('Role', style: TextStyle(fontSize: 12, color: Colors.grey))),
                         ],
                       ),
                     ),
@@ -323,8 +324,9 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                 ),
                                 Expanded(child: Text(email, style: const TextStyle(fontSize: 13))),
-                                // role 드롭다운 (DropdownButton 대신 FormField 사용 — assertion 에러 방지)
-                                Expanded(
+                                // role 드롭다운 — Expanded 대신 SizedBox로 assertion 에러 방지
+                                SizedBox(
+                                  width: 120,
                                   child: DropdownButtonFormField<String>(
                                     value: role,
                                     decoration: const InputDecoration(
@@ -372,7 +374,6 @@ class _AdminPageState extends State<AdminPage> {
           .doc(_churchId)
           .collection('expenses')
           .where('status', whereIn: ['approved', 'rejected'])
-          
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -430,7 +431,8 @@ class _AdminPageState extends State<AdminPage> {
                       )
                     else
                       ...docs.map((doc) {
-                        final status = doc['status'] as String;
+                        // status null 안전 처리
+                        final status = (doc['status'] as String?) ?? 'pending';
                         Color badgeBg;
                         Color badgeText;
                         if (status == 'approved') {
