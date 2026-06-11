@@ -22,6 +22,7 @@ class _ApproverPageState extends State<ApproverPage> {
     _loadChurchId();
   }
 
+  // 로그인한 유저의 churchId 불러오기
   Future<void> _loadChurchId() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final doc = await FirebaseFirestore.instance
@@ -31,6 +32,7 @@ class _ApproverPageState extends State<ApproverPage> {
     setState(() => _churchId = doc['churchId']);
   }
 
+  // 언어 선택 바텀시트
   void _showLanguagePicker() {
     showModalBottomSheet(
       context: context,
@@ -63,7 +65,9 @@ class _ApproverPageState extends State<ApproverPage> {
     );
   }
 
+  // 영수증 승인
   Future<void> _approve(String expenseId) async {
+    // 확인 다이얼로그
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -88,6 +92,7 @@ class _ApproverPageState extends State<ApproverPage> {
 
     if (confirmed != true) return;
 
+    // 승인자 이름 가져오기
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final userDoc = await FirebaseFirestore.instance
         .collection('users')
@@ -95,6 +100,7 @@ class _ApproverPageState extends State<ApproverPage> {
         .get();
     final approverName = userDoc['name'];
 
+    // Firestore 상태 업데이트
     await FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
@@ -107,9 +113,11 @@ class _ApproverPageState extends State<ApproverPage> {
         });
   }
 
+  // 영수증 반려 (사유 입력)
   Future<void> _reject(String expenseId) async {
     final reasonController = TextEditingController();
 
+    // 반려 사유 입력 다이얼로그
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -141,6 +149,7 @@ class _ApproverPageState extends State<ApproverPage> {
 
     if (confirmed != true) return;
 
+    // 승인자 이름 가져오기
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final userDoc = await FirebaseFirestore.instance
         .collection('users')
@@ -148,6 +157,7 @@ class _ApproverPageState extends State<ApproverPage> {
         .get();
     final approverName = userDoc['name'];
 
+    // Firestore 상태 업데이트
     await FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
@@ -161,6 +171,7 @@ class _ApproverPageState extends State<ApproverPage> {
         });
   }
 
+  // 영수증 카드 UI
   Widget _buildExpenseCard(Expense expense, AppLocalizations l10n) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -169,6 +180,7 @@ class _ApproverPageState extends State<ApproverPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // 영수증 이미지
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
@@ -186,11 +198,13 @@ class _ApproverPageState extends State<ApproverPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // 제출자 이름
                       Text(
                         expense.userName ?? 'Unknown',
                         style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w500),
                       ),
+                      // 승인/반려 버튼
                       Row(
                         children: [
                           TextButton.icon(
@@ -229,6 +243,7 @@ class _ApproverPageState extends State<ApproverPage> {
                     ],
                   ),
                   const SizedBox(height: 6),
+                  // 금액
                   if (expense.amount != null)
                     Row(
                       children: [
@@ -240,6 +255,7 @@ class _ApproverPageState extends State<ApproverPage> {
                       ],
                     ),
                   const SizedBox(height: 3),
+                  // 설명
                   if (expense.description != null &&
                       expense.description!.isNotEmpty)
                     Row(
@@ -252,6 +268,7 @@ class _ApproverPageState extends State<ApproverPage> {
                       ],
                     ),
                   const SizedBox(height: 3),
+                  // 날짜
                   Row(
                     children: [
                       const Icon(Icons.calendar_today,
@@ -273,6 +290,7 @@ class _ApproverPageState extends State<ApproverPage> {
     );
   }
 
+  // pending 상태 영수증 목록
   Widget _buildExpenseList() {
     final l10n = AppLocalizations.of(context)!;
     return StreamBuilder<QuerySnapshot>(
@@ -309,6 +327,7 @@ class _ApproverPageState extends State<ApproverPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
+    // churchId 로드 전 스피너
     if (_churchId == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -322,10 +341,12 @@ class _ApproverPageState extends State<ApproverPage> {
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: [
+          // 언어 변경
           IconButton(
             icon: const Icon(Icons.language),
             onPressed: _showLanguagePicker,
           ),
+          // 로그아웃
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {

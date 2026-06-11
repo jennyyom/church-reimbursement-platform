@@ -24,19 +24,21 @@ class _UserHomePageState extends State<UserHomePage> {
     _loadUserInfo();
   }
 
+  // 로그인한 유저 이름 + churchId 불러오기
   Future<void> _loadUserInfo() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final doc = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .get();
-        
+
     setState(() {
       _userName = doc['name'] ?? 'Friend';
       _churchId = doc['churchId'];
     });
   }
 
+  // 언어 선택 바텀시트
   void _showLanguagePicker() {
     showModalBottomSheet(
       context: context,
@@ -74,12 +76,14 @@ class _UserHomePageState extends State<UserHomePage> {
     final l10n = AppLocalizations.of(context)!;
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
+    // churchId 로드 전 스피너
     if (_churchId == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
+    // 본인 영수증만 최신순으로 가져오기
     final expenseStream = FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
@@ -95,10 +99,12 @@ class _UserHomePageState extends State<UserHomePage> {
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
+          // 언어 변경
           IconButton(
             icon: const Icon(Icons.language),
             onPressed: _showLanguagePicker,
           ),
+          // 로그아웃
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -138,7 +144,7 @@ class _UserHomePageState extends State<UserHomePage> {
                 ),
               ),
 
-              // Submit Receipt 큰 카드
+              // Submit Receipt 큰 카드 — 탭하면 UploadPage로 이동
               GestureDetector(
                 onTap: () => Navigator.push(
                   context,
@@ -186,7 +192,7 @@ class _UserHomePageState extends State<UserHomePage> {
                 ),
               ),
 
-              // 영수증 목록
+              // 내 영수증 목록
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -222,9 +228,10 @@ class _UserHomePageState extends State<UserHomePage> {
                         final e = entry.value;
                         final isLast = i == expenses.length - 1;
 
+                        // 상태별 배지 색상
                         Color badgeBg;
                         Color badgeText;
-                        // 수정: String 대신 enum으로 비교
+                        // enum으로 비교
                         if (e.status == ExpenseStatus.approved) {
                           badgeBg = const Color(0xFFEAF3DE);
                           badgeText = const Color(0xFF27500A);
@@ -242,6 +249,7 @@ class _UserHomePageState extends State<UserHomePage> {
                               mainAxisAlignment:
                                   MainAxisAlignment.spaceBetween,
                               children: [
+                                // 설명 + 날짜
                                 Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
@@ -261,6 +269,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                     ),
                                   ],
                                 ),
+                                // 금액 + 상태 배지
                                 Row(
                                   children: [
                                     if (e.amount != null)
@@ -278,7 +287,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                             BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        // 수정: enum.name으로 String 변환
+                                        // enum.name으로 String 변환
                                         e.status.name[0].toUpperCase() +
                                             e.status.name.substring(1),
                                         style: TextStyle(
@@ -292,6 +301,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                 ),
                               ],
                             ),
+                            // 마지막 아이템 제외 구분선
                             if (!isLast)
                               Divider(
                                 height: 16,
