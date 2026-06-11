@@ -7,6 +7,8 @@ import 'package:church_reimbursement/l10n/app_localizations.dart';
 import 'dart:typed_data';
 import '../models/expense.dart';
 import '../models/app_user.dart';
+import 'package:flutter/foundation.dart'; // kIsWeb
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 class UploadPage extends StatefulWidget {
   const UploadPage({super.key});
@@ -21,16 +23,38 @@ class _UploadPageState extends State<UploadPage> {
   final _amountController = TextEditingController();      // 금액 입력
   final _descriptionController = TextEditingController(); // 설명 입력
 
-  // 이미지 선택
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+  // 이미지 선택 + OCR 텍스트 추출
+Future<void> _pickImage() async {
+  final picker = ImagePicker();
+  final picked = await picker.pickImage(source: ImageSource.gallery);
 
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      setState(() => _imageBytes = bytes);
+  if (picked != null) {
+    final bytes = await picked.readAsBytes();
+    setState(() => _imageBytes = bytes);
+
+    // OCR 실행
+    if (!kIsWeb) {
+      final inputImage = InputImage.fromFilePath(picked.path);
+      final recognizer = TextRecognizer();
+      final result = await recognizer.processImage(inputImage);
+      await recognizer.close();
+
+      // 금액 찾기 (정규식)
+      final amountRegex = RegExp(r'\$?\d+\.\d{2}');
+      final matches = amountRegex.allMatches(result.text);
+      if (matches.isNotEmpty) {
+        // 가장 큰 금액을 total로 가정
+        double maxAmount = 0;
+        for (final match in matches) {
+          final str = match.group(0)!.replaceAll('\$', '');
+          final val = double.tryParse(str) ?? 0;
+          if (val > maxAmount) maxAmount = val;
+        }
+        setState(() => _amountController.text = maxAmount.toStringAsFixed(2));
+      }
     }
   }
+}
 
   // Firebase Storage 업로드 + Firestore 저장
   Future<void> _uploadReceipt() async {
