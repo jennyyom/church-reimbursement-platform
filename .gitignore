@@ -44,4 +44,4 @@ android/local.properties
 # Firebase config
 google-services.json
 GoogleService-Info.plist
-
+.firebase/
