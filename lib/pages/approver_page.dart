@@ -180,16 +180,31 @@ class _ApproverPageState extends State<ApproverPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 영수증 이미지
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                expense.imageUrl,
-                width: 70,
-                height: 90,
-                fit: BoxFit.cover,
+            // 영수증 이미지-approver dashboard에서 영수증 확인할수 있게 수정
+            GestureDetector(
+              onTap: () => showDialog(
+                context: context,
+                builder: (_) => Dialog(
+                  backgroundColor: Colors.transparent,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: InteractiveViewer( // 핀치 줌 가능
+                      child: Image.network(expense.imageUrl),
+                    ),
+                  ),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  expense.imageUrl,
+                  width: 70,
+                  height: 90,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
+
             const SizedBox(width: 12),
             Expanded(
               child: Column(
