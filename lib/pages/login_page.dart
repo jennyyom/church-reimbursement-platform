@@ -207,7 +207,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // 모바일 레이아웃 — C번 바텀시트 스타일
+  // 모바일 레이아웃 
   Widget _buildMobileLayout(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
