@@ -41,3 +41,7 @@ android/local.properties
 # Environment
 .env
 
+# Firebase config
+google-services.json
+GoogleService-Info.plist
+
