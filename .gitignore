@@ -37,3 +37,7 @@ android/local.properties
 *.log
 *.swp
 *.lock
+
+# Environment
+.env
+
