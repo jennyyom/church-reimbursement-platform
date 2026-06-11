@@ -28,14 +28,19 @@ Church finance teams still manage reimbursements with paper receipts, email thre
 
 ## Features
 
-| Feature | Description |
-|---|---|
-| Receipt Scanning | Upload receipts via mobile camera with OCR extraction |
-| AI Parsing | Automatic amount, date, and vendor detection |
-| Expense Submission | Categorize by ministry or fund with notes and attachments |
-| Approval Workflow | Admin approve/reject dashboard with audit trail |
-| Export | CSV and Excel export for accounting integration |
-| Localization | English, 한국어, Kiswahili |
+| Feature | Status | Description |
+|---|---|---|
+| Authentication | ✅ | Email/password login with role-based routing |
+| Role-Based Access | ✅ | member / approver / admin |
+| Receipt Upload | ✅ | Upload receipts via camera or gallery |
+| Expense Submission | ✅ | Submit with amount, description, and image |
+| Approval Workflow | ✅ | Approver dashboard with approve/reject + reason |
+| Admin Dashboard | ✅ | Overview, user management, history |
+| Export CSV | ✅ | Download all expenses as CSV |
+| Localization | ✅ | English, 한국어, Kiswahili |
+| OCR | 🔜 | Auto-extract text from receipt images (ML Kit) |
+| AI Parsing | 🔜 | Convert OCR text to structured data (Claude / GPT-4) |
+| Planning Center / QuickBooks | 🔜 | Accounting integration |
 
 ---
 
@@ -45,9 +50,34 @@ Church finance teams still manage reimbursements with paper receipts, email thre
 |---|---|
 | Frontend | Flutter (iOS, Android, Web) |
 | Backend | Firebase (Firestore, Auth, Storage, Functions) |
-| OCR | Google ML Kit / Vision API |
-| AI Parsing | LLM API |
+| OCR | Google ML Kit (planned) |
+| AI Parsing | LLM API (planned) |
 | Hosting | Firebase Hosting |
+
+---
+
+## Roles
+
+| Role | Permissions |
+|---|---|
+| member | Submit receipts, view own history |
+| approver | Approve or reject pending receipts |
+| admin | Manage users, view all expenses, export CSV |
+
+---
+
+## Data Structure
+
+```
+users/{uid}
+  - name, email, role, churchId
+
+churches/{churchId}/expenses/{expenseId}
+  - uid, userName, churchId
+  - imageUrl, amount, description
+  - status (pending / approved / rejected)
+  - createdAt, approvedBy, approvedAt, rejectReason
+```
 
 ---
 
@@ -75,11 +105,24 @@ LLM_API_KEY=
 
 - [x] Authentication + role-based routing (admin / approver / member)
 - [x] Localization (EN / KO / SW)
-- [ ] Receipt upload + OCR
-- [ ] Expense submission
-- [ ] Admin approval dashboard
-- [ ] Reporting & export
+- [x] Receipt upload + Firebase Storage
+- [x] Expense submission
+- [x] Approver dashboard (approve / reject)
+- [x] Admin dashboard (overview / users / history)
+- [x] Export CSV
+- [ ] OCR — receipt image → text (ML Kit)
+- [ ] AI parsing — text → structured JSON
+- [ ] Firebase Hosting deployment
 - [ ] Planning Center / QuickBooks integration
+
+---
+
+## Tanzania Considerations
+
+- Offline caching for low connectivity
+- M-Pesa payment integration (planned)
+- Low-end Android optimization
+- Kiswahili localization
 
 ---
 
