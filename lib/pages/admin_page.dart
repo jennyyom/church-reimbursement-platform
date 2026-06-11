@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_page.dart';
+import 'dart:html' as html;
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -11,6 +12,7 @@ class AdminPage extends StatefulWidget {
 }
 
 class _AdminPageState extends State<AdminPage> {
+  // 현재 선택된 메뉴 (overview, users, history)
   String _selectedMenu = 'overview';
   String? _churchId;
 
@@ -20,6 +22,7 @@ class _AdminPageState extends State<AdminPage> {
     _loadChurchId();
   }
 
+  // 로그인한 유저의 churchId 불러오기
   Future<void> _loadChurchId() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final doc = await FirebaseFirestore.instance
@@ -29,6 +32,7 @@ class _AdminPageState extends State<AdminPage> {
     setState(() => _churchId = doc['churchId']);
   }
 
+  // 로그아웃
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
@@ -71,16 +75,16 @@ class _AdminPageState extends State<AdminPage> {
 
   // Overview — 통계 4개 + 최근 내역
   Widget _buildOverview() {
+    if (_churchId == null) return const Center(child: CircularProgressIndicator());
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('churches')
           .doc(_churchId)
           .collection('expenses')
+          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
         final docs = snapshot.data!.docs;
         final total = docs.length;
@@ -97,6 +101,7 @@ class _AdminPageState extends State<AdminPage> {
             children: [
               const Text('Overview', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
               const SizedBox(height: 20),
+              // 통계 카드 4개
               Row(
                 children: [
                   _buildStatCard('Total Receipts', '$total', Colors.red.shade800),
@@ -109,6 +114,7 @@ class _AdminPageState extends State<AdminPage> {
                 ],
               ),
               const SizedBox(height: 24),
+              // 최근 영수증 테이블
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -137,8 +143,8 @@ class _AdminPageState extends State<AdminPage> {
                       ),
                     ),
                     const Divider(height: 1),
-                    // 데이터 rows
-                    ...docs.take(10).map((doc) {
+                    // 데이터 rows 
+                    ...docs.map((doc) {
                       final status = doc['status'] as String;
                       final date = (doc['createdAt'] as dynamic)?.toDate();
                       Color badgeBg;
@@ -190,6 +196,39 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
+  // CSV 내보내기
+    Future<void> _exportCsv() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('churches')
+        .doc(_churchId)
+        .collection('expenses')
+        .get();
+
+    final rows = <String>['Name,Description,Amount,Status,Date,Approved By'];
+
+    for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final date = (data['createdAt'] as dynamic)?.toDate();
+        final dateStr = date != null ? '${date.year}/${date.month}/${date.day}' : '-';
+        rows.add(
+        '${data['userName'] ?? '-'},'
+        '${data['description'] ?? '-'},'
+        '${data['amount'] ?? 0},'
+        '${data['status'] ?? '-'},'
+        '$dateStr,'
+        '${data['approvedBy'] ?? '-'}',
+        );
+    }
+
+    final csv = rows.join('\n');
+    final blob = html.Blob([csv], 'text/csv');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    html.AnchorElement(href: url)
+        ..setAttribute('download', 'expenses.csv')
+        ..click();
+    html.Url.revokeObjectUrl(url);
+    }
+
   // 통계 카드
   Widget _buildStatCard(String label, String value, Color color) {
     return Expanded(
@@ -213,17 +252,16 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
-  // 유저 관리
+  // 유저 관리 — 역할 변경 드롭다운
   Widget _buildUsers() {
+    if (_churchId == null) return const Center(child: CircularProgressIndicator());
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .where('churchId', isEqualTo: _churchId)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
         final users = snapshot.data!.docs;
 
@@ -256,17 +294,18 @@ class _AdminPageState extends State<AdminPage> {
                     const Divider(height: 1),
                     // 유저 목록
                     ...users.map((doc) {
+                      // role/name/email 없는 문서 안전 처리
                       final data = doc.data() as Map<String, dynamic>? ?? {};
                       final role = data['role'] as String? ?? 'member';
                       final name = data['name'] as String? ?? '?';
                       final email = data['email'] as String? ?? '-';
-
                       return Column(
                         children: [
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             child: Row(
                               children: [
+                                // 이름 + 아바타
                                 Expanded(
                                   child: Row(
                                     children: [
@@ -284,13 +323,15 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                 ),
                                 Expanded(child: Text(email, style: const TextStyle(fontSize: 13))),
-                                // role 드롭다운
+                                // role 드롭다운 (DropdownButton 대신 FormField 사용 — assertion 에러 방지)
                                 Expanded(
-                                  child: DropdownButton<String>(
+                                  child: DropdownButtonFormField<String>(
                                     value: role,
-                                    isDense: true,
-                                    underline: const SizedBox(),
-                                    isExpanded: true,  // 추가
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                      isDense: true,
+                                    ),
                                     items: const [
                                       DropdownMenuItem(value: 'member', child: Text('Member', style: TextStyle(fontSize: 13))),
                                       DropdownMenuItem(value: 'approver', child: Text('Approver', style: TextStyle(fontSize: 13))),
@@ -324,18 +365,17 @@ class _AdminPageState extends State<AdminPage> {
 
   // 히스토리 — Approved/Rejected 전체 내역
   Widget _buildHistory() {
+    if (_churchId == null) return const Center(child: CircularProgressIndicator());
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('churches')
           .doc(_churchId)
           .collection('expenses')
           .where('status', whereIn: ['approved', 'rejected'])
-          //.orderBy('approvedAt', descending: true)
+          
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
         final docs = snapshot.data!.docs;
 
@@ -344,7 +384,22 @@ class _AdminPageState extends State<AdminPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('History', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+              // 제목 + Export 버튼
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('History', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                  ElevatedButton.icon(
+                    onPressed: _exportCsv,
+                    icon: const Icon(Icons.download, size: 16),
+                    label: const Text('Export CSV'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB71C1C),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
               Container(
                 decoration: BoxDecoration(
@@ -354,6 +409,7 @@ class _AdminPageState extends State<AdminPage> {
                 ),
                 child: Column(
                   children: [
+                    // 헤더
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(
@@ -423,6 +479,7 @@ class _AdminPageState extends State<AdminPage> {
 
   @override
   Widget build(BuildContext context) {
+    // churchId 로드 전 스피너
     if (_churchId == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
