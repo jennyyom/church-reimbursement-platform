@@ -13,13 +13,23 @@ class ApproverPage extends StatefulWidget {
   State<ApproverPage> createState() => _ApproverPageState();
 }
 
-class _ApproverPageState extends State<ApproverPage> {
+class _ApproverPageState extends State<ApproverPage>
+    with SingleTickerProviderStateMixin {
   String? _churchId;
+  String? _approverUid;
+  late TabController _tabController; // 탭 컨트롤러
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this); // 탭 2개
     _loadChurchId();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   // 로그인한 유저의 churchId 불러오기
@@ -29,7 +39,10 @@ class _ApproverPageState extends State<ApproverPage> {
         .collection('users')
         .doc(uid)
         .get();
-    setState(() => _churchId = doc['churchId']);
+    setState(() {
+      _churchId = doc['churchId'];
+      _approverUid = uid; // 내 uid 저장 — 히스토리 필터용
+    });
   }
 
   // 언어 선택 바텀시트
@@ -111,6 +124,7 @@ class _ApproverPageState extends State<ApproverPage> {
         .update({
           'status': 'approved',
           'approvedBy': approverName,
+          'approvedByUid': uid, // 히스토리 필터용
           'approvedAt': FieldValue.serverTimestamp(),
         });
   }
@@ -169,11 +183,12 @@ class _ApproverPageState extends State<ApproverPage> {
           'status': 'rejected',
           'rejectReason': reasonController.text.trim(),
           'approvedBy': approverName,
+          'approvedByUid': uid, // 히스토리 필터용
           'approvedAt': FieldValue.serverTimestamp(),
         });
   }
 
-  // 영수증 카드 UI
+  // 영수증 카드 UI (pending용 — 승인/반려 버튼 있음)
   Widget _buildExpenseCard(Expense expense, AppLocalizations l10n) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -182,7 +197,7 @@ class _ApproverPageState extends State<ApproverPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 영수증 이미지 — approver dashboard에서 영수증 확인할 수 있게 수정
+            // 영수증 이미지 — 탭하면 크게 보기 + 핀치 줌
             GestureDetector(
               onTap: () => showDialog(
                 context: context,
@@ -190,7 +205,7 @@ class _ApproverPageState extends State<ApproverPage> {
                   backgroundColor: Colors.transparent,
                   child: GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: InteractiveViewer( // 핀치 줌 가능
+                    child: InteractiveViewer(
                       child: Image.network(expense.imageUrl),
                     ),
                   ),
@@ -206,7 +221,6 @@ class _ApproverPageState extends State<ApproverPage> {
                 ),
               ),
             ),
-
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -294,7 +308,126 @@ class _ApproverPageState extends State<ApproverPage> {
                       const SizedBox(width: 4),
                       Text(
                         '${expense.createdAt.year}/${expense.createdAt.month}/${expense.createdAt.day}',
-                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 히스토리 카드 UI (승인/반려 버튼 없음, 상태 배지 있음)
+  Widget _buildHistoryCard(Expense expense) {
+    // 상태별 배지 색상
+    final isApproved = expense.status == ExpenseStatus.approved;
+    final badgeBg = isApproved ? const Color(0xFFEAF3DE) : const Color(0xFFFCEBEB);
+    final badgeText = isApproved ? const Color(0xFF27500A) : const Color(0xFF501313);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 영수증 이미지 — 탭하면 크게 보기
+            GestureDetector(
+              onTap: () => showDialog(
+                context: context,
+                builder: (_) => Dialog(
+                  backgroundColor: Colors.transparent,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: InteractiveViewer(
+                      child: Image.network(expense.imageUrl),
+                    ),
+                  ),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  expense.imageUrl,
+                  width: 70,
+                  height: 90,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // 제출자 이름
+                      Text(
+                        expense.userName ?? 'Unknown',
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                      // 상태 배지
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          isApproved ? 'Approved' : 'Rejected',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: badgeText,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // 금액
+                  if (expense.amount != null)
+                    Row(
+                      children: [
+                        const Icon(Icons.attach_money,
+                            size: 14, color: Colors.green),
+                        const SizedBox(width: 4),
+                        Text('\$${expense.amount!.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  const SizedBox(height: 3),
+                  // 설명
+                  if (expense.description != null &&
+                      expense.description!.isNotEmpty)
+                    Row(
+                      children: [
+                        const Icon(Icons.edit, size: 14, color: Colors.orange),
+                        const SizedBox(width: 4),
+                        Text(expense.description!,
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.grey)),
+                      ],
+                    ),
+                  const SizedBox(height: 3),
+                  // 날짜
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today,
+                          size: 14, color: Colors.red),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${expense.createdAt.year}/${expense.createdAt.month}/${expense.createdAt.day}',
+                        style:
+                            const TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -308,7 +441,7 @@ class _ApproverPageState extends State<ApproverPage> {
   }
 
   // pending 상태 영수증 목록
-  Widget _buildExpenseList() {
+  Widget _buildPendingList() {
     final l10n = AppLocalizations.of(context)!;
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -321,20 +454,50 @@ class _ApproverPageState extends State<ApproverPage> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text(l10n.reviewReceipts));
         }
-
         final expenses = snapshot.data!.docs
             .map((doc) => Expense.fromFirestore(doc))
             .toList();
-
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           itemCount: expenses.length,
           itemBuilder: (context, index) =>
               _buildExpenseCard(expenses[index], l10n),
+        );
+      },
+    );
+  }
+
+  // 내가 처리한 히스토리 목록
+  Widget _buildHistoryList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('churches')
+          .doc(_churchId)
+          .collection('expenses')
+          .where('approvedByUid', isEqualTo: _approverUid) // 내가 처리한 것만
+          .where('status', whereIn: ['approved', 'rejected'])
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Text('No history yet',
+                style: TextStyle(color: Colors.grey)),
+          );
+        }
+        final expenses = snapshot.data!.docs
+            .map((doc) => Expense.fromFirestore(doc))
+            .toList();
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          itemCount: expenses.length,
+          itemBuilder: (context, index) =>
+              _buildHistoryCard(expenses[index]),
         );
       },
     );
@@ -377,8 +540,25 @@ class _ApproverPageState extends State<ApproverPage> {
             },
           ),
         ],
+        // 탭바
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          tabs: const [
+            Tab(text: 'Pending'),
+            Tab(text: 'History'),
+          ],
+        ),
       ),
-      body: _buildExpenseList(),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildPendingList(),  // 첫 번째 탭 — pending
+          _buildHistoryList(),  // 두 번째 탭 — 내 히스토리
+        ],
+      ),
     );
   }
 }
