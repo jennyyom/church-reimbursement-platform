@@ -23,6 +23,8 @@ dependencies:
   google_mlkit_text_recognition: ^0.13.0    # 추가
   flutter_dotenv: ^5.2.1    # 추가
   http: ^1.2.0              # 추가
+  share_plus: ^10.0.0        # 추가
+  path_provider: ^2.1.0      # 마지막 추가후 항상 flutter pub get
 
 dev_dependencies:
   flutter_test:

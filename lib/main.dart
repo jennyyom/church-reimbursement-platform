@@ -6,6 +6,7 @@ import 'firebase_options.dart';                              // 연결정보 가
 import 'pages/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();                 // flutter 준비될 때까지 기다리기
@@ -13,7 +14,9 @@ void main() async {
   await Firebase.initializeApp(                              // firebase 시작
     options: DefaultFirebaseOptions.currentPlatform,         // 플랫폼에 맞는 설정 사용
   );
-  await FirebaseAuth.instance.setPersistence(Persistence.LOCAL); // 웹 새로고침 후 로그인 유지
+  if (kIsWeb) {
+  await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+}
   runApp(const ChurchReimbursementApp());                    // 앱 실행
 }
 

@@ -39,10 +39,11 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 
   // 언어 선택 바텀시트
-  void _showLanguagePicker() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => Column(
+void _showLanguagePicker() {
+  showModalBottomSheet(
+    context: context,
+    builder: (_) => SafeArea(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
@@ -68,8 +69,9 @@ class _UserHomePageState extends State<UserHomePage> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

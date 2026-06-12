@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_page.dart';
-import 'dart:html' as html;
+import '../utils/csv_download.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -68,12 +68,7 @@ class _AdminPageState extends State<AdminPage> {
     }
 
     final csv = rows.join('\n');
-    final blob = html.Blob([csv], 'text/csv');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.AnchorElement(href: url)
-      ..setAttribute('download', 'expenses.csv')
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    await downloadCsv(csv, 'expenses.csv');   //수정
   }
 
   // 사이드바 메뉴 아이템

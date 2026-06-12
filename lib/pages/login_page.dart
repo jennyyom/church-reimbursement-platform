@@ -119,9 +119,10 @@ class _LoginPageState extends State<LoginPage> {
 
   // 언어 선택 바텀시트
   void _showLanguagePicker() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => Column(
+  showModalBottomSheet(
+    context: context,
+    builder: (_) => SafeArea(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
@@ -147,8 +148,9 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // 공통 폼 — 모바일/웹 둘 다 사용
   Widget _buildForm(BuildContext context, {bool isWeb = false}) {

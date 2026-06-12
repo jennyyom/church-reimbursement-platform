@@ -27,9 +27,9 @@ class _UploadPageState extends State<UploadPage> {
   final _descriptionController = TextEditingController(); // 설명 입력
 
   // 이미지 선택 + OCR 텍스트 추출
-  Future<void> _pickImage() async {
+  Future<void> _pickImage({required ImageSource source}) async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await picker.pickImage(source: source);
 
     if (picked != null) {
       final bytes = await picked.readAsBytes();
@@ -61,6 +61,40 @@ class _UploadPageState extends State<UploadPage> {
         await _extractAmountFromImage(bytes);
       }
     }
+  }
+
+  // 이미지 소스 선택 — 웹은 갤러리 바로, 모바일은 카메라/갤러리 선택
+  void _showImageSourcePicker() {
+    if (kIsWeb) {
+      _pickImage(source: ImageSource.gallery);
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take a Photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(source: ImageSource.camera); // 카메라로 찍기
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(source: ImageSource.gallery); // 갤러리에서 선택
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // Google Cloud Vision API로 영수증에서 금액 추출 (웹 전용)
@@ -191,11 +225,11 @@ class _UploadPageState extends State<UploadPage> {
                     ),
               const SizedBox(height: 16),
 
-              // 이미지 선택 버튼 — 탭하면 갤러리 열림
+              // 이미지 선택 버튼 — 모바일은 카메라/갤러리 선택, 웹은 갤러리 바로 열림
               ElevatedButton.icon(
-                onPressed: _pickImage,
+                onPressed: _showImageSourcePicker,
                 icon: const Icon(Icons.photo_library),
-                label: Text(l10n.selectImage),
+                label: Text(kIsWeb ? l10n.selectImage : 'Add Photo'),
               ),
               const SizedBox(height: 16),
 

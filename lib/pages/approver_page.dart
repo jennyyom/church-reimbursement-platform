@@ -36,31 +36,33 @@ class _ApproverPageState extends State<ApproverPage> {
   void _showLanguagePicker() {
     showModalBottomSheet(
       context: context,
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            title: const Text('English'),
-            onTap: () {
-              ChurchReimbursementApp.of(context)?.setLocale(const Locale('en'));
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            title: const Text('한국어'),
-            onTap: () {
-              ChurchReimbursementApp.of(context)?.setLocale(const Locale('ko'));
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            title: const Text('Kiswahili'),
-            onTap: () {
-              ChurchReimbursementApp.of(context)?.setLocale(const Locale('sw'));
-              Navigator.pop(context);
-            },
-          ),
-        ],
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('English'),
+              onTap: () {
+                ChurchReimbursementApp.of(context)?.setLocale(const Locale('en'));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('한국어'),
+              onTap: () {
+                ChurchReimbursementApp.of(context)?.setLocale(const Locale('ko'));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('Kiswahili'),
+              onTap: () {
+                ChurchReimbursementApp.of(context)?.setLocale(const Locale('sw'));
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -180,7 +182,7 @@ class _ApproverPageState extends State<ApproverPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 영수증 이미지-approver dashboard에서 영수증 확인할수 있게 수정
+            // 영수증 이미지 — approver dashboard에서 영수증 확인할 수 있게 수정
             GestureDetector(
               onTap: () => showDialog(
                 context: context,
@@ -219,8 +221,9 @@ class _ApproverPageState extends State<ApproverPage> {
                         style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w500),
                       ),
-                      // 승인/반려 버튼
-                      Row(
+                      // 승인/반려 버튼 — 위아래로 배치
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           TextButton.icon(
                             onPressed: () => _approve(expense.id),
@@ -237,7 +240,7 @@ class _ApproverPageState extends State<ApproverPage> {
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(height: 6),
                           TextButton.icon(
                             onPressed: () => _reject(expense.id),
                             icon: const Icon(Icons.close,
@@ -291,8 +294,7 @@ class _ApproverPageState extends State<ApproverPage> {
                       const SizedBox(width: 4),
                       Text(
                         '${expense.createdAt.year}/${expense.createdAt.month}/${expense.createdAt.day}',
-                        style:
-                            const TextStyle(fontSize: 13, color: Colors.grey),
+                        style: const TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                     ],
                   ),
