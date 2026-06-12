@@ -542,10 +542,10 @@ class _ApproverPageState extends State<ApproverPage>
         ],
         // 탭바
         bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
+        controller: _tabController,
+        indicatorColor: Colors.black,
+        labelColor: Colors.black,
+        unselectedLabelColor: Colors.black54,
           tabs: const [
             Tab(text: 'Pending'),
             Tab(text: 'History'),
