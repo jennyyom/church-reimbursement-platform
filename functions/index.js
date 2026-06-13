@@ -23,9 +23,11 @@ exports.processReceipt = onObjectFinalized(async (event) => {
     const [result] = await visionClient.textDetection(gcsUri);
     const text = result.fullTextAnnotation?.text || "";
 
-    // 2. 텍스트에서 금액 추출 ($ 또는 숫자 패턴)
-    const amountMatch = text.match(/\$?\s*(\d+\.\d{2})/);
-    const amount = amountMatch ? parseFloat(amountMatch[1]) : null;
+    // 2. 가장 큰 금액을 total로 가정
+    const amountMatches = [...text.matchAll(/\$?\s*(\d+\.\d{2})/g)];
+    const amount = amountMatches.length > 0
+      ? Math.max(...amountMatches.map(m => parseFloat(m[1])))
+      : null;
 
     // 3. Firestore에서 해당 expense 찾아서 업데이트
     const uid = filePath.split("/")[1]; // receipts/{uid}/{fileName}

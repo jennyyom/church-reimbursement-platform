@@ -76,11 +76,6 @@ class _UploadPageState extends State<UploadPage> {
           setState(() => _amountController.text = maxAmount.toStringAsFixed(2));
         }
       }
-
-      // 웹에서는 Google Cloud Vision API 사용
-      if (kIsWeb) {
-        await _extractAmountFromImage(bytes);
-      }
     }
   }
 
@@ -116,47 +111,6 @@ class _UploadPageState extends State<UploadPage> {
         ),
       ),
     );
-  }
-
-  // Google Cloud Vision API로 영수증에서 금액 추출 (웹 전용)
-  Future<void> _extractAmountFromImage(Uint8List imageBytes) async {
-    try {
-      // .env에서 API 키 가져오기
-      final apiKey = dotenv.env['GOOGLE_VISION_API_KEY'] ?? '';
-      final base64Image = base64Encode(imageBytes);
-
-      // Vision API 호출
-      final response = await http.post(
-        Uri.parse('https://vision.googleapis.com/v1/images:annotate?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'requests': [
-            {
-              'image': {'content': base64Image},
-              'features': [{'type': 'TEXT_DETECTION'}],
-            }
-          ]
-        }),
-      );
-
-      final data = jsonDecode(response.body);
-      final text = data['responses'][0]['fullTextAnnotation']['text'] as String;
-
-      // 금액 찾기 — 가장 큰 숫자를 total로 가정
-      final amountRegex = RegExp(r'\$?\d+\.\d{2}');
-      final matches = amountRegex.allMatches(text);
-      if (matches.isNotEmpty) {
-        double maxAmount = 0;
-        for (final match in matches) {
-          final str = match.group(0)!.replaceAll('\$', '');
-          final val = double.tryParse(str) ?? 0;
-          if (val > maxAmount) maxAmount = val;
-        }
-        setState(() => _amountController.text = maxAmount.toStringAsFixed(2));
-      }
-    } catch (e) {
-      debugPrint('OCR error: $e');
-    }
   }
 
   // Firebase Storage 업로드 + Firestore 저장
@@ -199,11 +153,27 @@ class _UploadPageState extends State<UploadPage> {
         createdAt: DateTime.now(),
       );
 
-      await FirebaseFirestore.instance
+      // Expense Firestore 저장 + 웹에서 OCR 결과 기다리기
+      final expenseRef = await FirebaseFirestore.instance
           .collection('churches')
           .doc(appUser.churchId)
           .collection('expenses')
           .add(expense.toFirestore());
+
+      // 웹에서는 Function OCR 결과 기다리기 (최대 10초)
+      if (kIsWeb) {
+        for (int i = 0; i < 10; i++) {
+          await Future.delayed(const Duration(seconds: 1));
+          final doc = await expenseRef.get();
+          if (doc.data()?['ocrProcessed'] == true) {
+            final amount = doc.data()?['amount'];
+            if (amount != null && mounted) {
+              setState(() => _amountController.text = amount.toStringAsFixed(2));
+            }
+            break;
+          }
+        }
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
