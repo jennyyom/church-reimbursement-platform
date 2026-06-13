@@ -12,7 +12,6 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // .env API 키
 import 'package:http/http.dart' as http; // Vision API 호출
 import 'dart:convert'; // base64, jsonEncode
-import 'dart:convert'; // base64, jsonEncode
 import 'package:flutter_image_compress/flutter_image_compress.dart'; // 이미지 압축
 
 class UploadPage extends StatefulWidget {
@@ -35,15 +34,27 @@ class _UploadPageState extends State<UploadPage> {
 
     if (picked != null) {
       final bytes = await picked.readAsBytes();
-      // 이미지 압축
-      final compressed = await FlutterImageCompress.compressWithList(
-        bytes,
-        minWidth: 1920,
-        minHeight: 1920,
-        quality: 85,
-      );
 
-      setState(() => _imageBytes = compressed);
+      // 이미지 압축 — 앱(Android/iOS)에서만, 웹은 미지원
+      if (!kIsWeb) {
+        final compressed = await FlutterImageCompress.compressWithList(
+          bytes,
+          minWidth: 1920,
+          minHeight: 1920,
+          quality: 85,
+        );
+        setState(() => _imageBytes = compressed);
+      } else {
+        // 웹은 압축 미지원 — 5MB 초과하면 경고
+        if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image is too large. Please choose a smaller image (under 5MB).')),
+          );
+          return;
+        }
+        setState(() => _imageBytes = bytes); // 웹은 원본 그대로
+      }
 
       // 앱(iOS/Android)에서는 ML Kit OCR 사용 — 온디바이스, 무료
       if (!kIsWeb) {
