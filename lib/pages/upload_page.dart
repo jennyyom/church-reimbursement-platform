@@ -9,7 +9,7 @@ import '../models/expense.dart';
 import '../models/app_user.dart';
 import 'package:flutter/foundation.dart'; // kIsWeb 체크용
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; // 앱 OCR
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // .env API 키
+
 import 'package:http/http.dart' as http; // Vision API 호출
 import 'dart:convert'; // base64, jsonEncode
 import 'package:flutter_image_compress/flutter_image_compress.dart'; // 이미지 압축
