@@ -470,7 +470,7 @@ class _ApproverPageState extends State<ApproverPage>
     );
   }
 
-  // 내가 처리한 히스토리 목록
+  // 내가 처리한 history 목록
   Widget _buildHistoryList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
