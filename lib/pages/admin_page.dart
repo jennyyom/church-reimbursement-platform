@@ -517,6 +517,7 @@ class _AdminPageState extends State<AdminPage> {
                 _buildMenuItem(id: 'overview', icon: Icons.dashboard_outlined, label: 'Overview'),
                 _buildMenuItem(id: 'users', icon: Icons.people_outline, label: 'Users'),
                 _buildMenuItem(id: 'history', icon: Icons.history, label: 'History'),
+                _buildMenuItem(id: 'departments', icon: Icons.apartment, label: 'Departments'),
                 const Spacer(),
                 // 로그아웃
                 Padding(
