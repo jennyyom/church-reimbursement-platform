@@ -6,6 +6,8 @@
 ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=flat&logo=firebase&logoColor=black)
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=flat&logo=dart&logoColor=white)
 
+**Live app:** https://church-reimbursment.web.app
+
 ---
 
 ## Why
@@ -106,6 +108,13 @@ firebase deploy --only firestore:rules
 firebase deploy --only functions
 ```
 
+To deploy web app changes to the live site (https://church-reimbursment.web.app):
+
+```bash
+flutter build web
+firebase deploy --only hosting
+```
+
 ---
 
 ## Roadmap
@@ -119,7 +128,7 @@ firebase deploy --only functions
 - [x] Export CSV
 - [x] OCR — receipt image → amount (ML Kit + Cloud Vision)
 - [ ] AI parsing — text → structured JSON
-- [ ] Firebase Hosting deployment
+- [x] Firebase Hosting deployment (redeploy with `firebase deploy --only hosting` after web-affecting changes)
 - [ ] Planning Center / QuickBooks integration
 
 ---
