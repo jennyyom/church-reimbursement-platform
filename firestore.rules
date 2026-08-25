@@ -34,6 +34,11 @@ service cloud.firestore {
       // 승인/거절: approver, admin만
       allow update: if request.auth != null
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['approver', 'admin'];
+
+      // 삭제: 본인이 올린 건이고 아직 pending일 때만, 또는 admin은 상태 상관없이
+      allow delete: if request.auth != null
+        && ((resource.data.uid == request.auth.uid && resource.data.status == 'pending')
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
     // 교회 departments - 읽기는 같은 교회 멤버 전체, 쓰기(추가/삭제)는 admin만
