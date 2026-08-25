@@ -206,7 +206,13 @@ class _ApproverPageState extends State<ApproverPage>
                   child: GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: InteractiveViewer(
-                      child: Image.network(expense.imageUrl),
+                      child: Image.network(
+                        expense.imageUrl,
+                        errorBuilder: (context, error, stackTrace) => const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Icon(Icons.broken_image_outlined, color: Colors.white, size: 64),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -218,6 +224,12 @@ class _ApproverPageState extends State<ApproverPage>
                   width: 70,
                   height: 90,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 70,
+                    height: 90,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 28),
+                  ),
                 ),
               ),
             ),
@@ -345,7 +357,13 @@ class _ApproverPageState extends State<ApproverPage>
                   child: GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: InteractiveViewer(
-                      child: Image.network(expense.imageUrl),
+                      child: Image.network(
+                        expense.imageUrl,
+                        errorBuilder: (context, error, stackTrace) => const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Icon(Icons.broken_image_outlined, color: Colors.white, size: 64),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -357,6 +375,12 @@ class _ApproverPageState extends State<ApproverPage>
                   width: 70,
                   height: 90,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 70,
+                    height: 90,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 28),
+                  ),
                 ),
               ),
             ),
