@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 유저 본인 정보만 읽기/쓰기
+    match /users/{userId} {
+  allow read: if request.auth != null
+    && (request.auth.uid == userId
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+  allow write: if request.auth != null
+    && request.auth.uid == userId;
+  allow update: if request.auth != null
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']);
+	}
+
+    // 교회 정보는 누구나 읽기 가능 (초대 코드 확인용)
+    match /churches/{churchId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 교회 expenses - 같은 교회 멤버만 접근
+    match /churches/{churchId}/expenses/{expenseId} {
+
+      // 읽기: 같은 교회 멤버
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId;
+
+      // 쓰기: 본인 expense만
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+
+      // 승인/거절: approver, admin만
+      allow update: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['approver', 'admin'];
+    }
+
+    // 교회 departments - 읽기는 같은 교회 멤버 전체, 쓰기(추가/삭제)는 admin만
+    match /churches/{churchId}/departments/{deptId} {
+
+      // 읽기: 같은 교회 멤버
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId;
+
+      // 쓰기(추가/수정/삭제): admin만
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}

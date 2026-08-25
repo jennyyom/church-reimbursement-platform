@@ -101,6 +101,22 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
+  // StreamBuilder 공통 로딩/에러 처리
+  // 에러면 에러 메시지, 아직 데이터 없으면 스피너, 정상이면 null 반환
+  Widget? _streamStatus(AsyncSnapshot<QuerySnapshot> snapshot) {
+    if (snapshot.hasError) {
+      return Center(
+        child: Text(
+          'Failed to load data: ${snapshot.error}',
+          style: const TextStyle(color: Colors.red),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+    return null;
+  }
+
   // Overview — 통계 4개 + 전체 내역
   Widget _buildOverview() {
     if (_churchId == null) return const Center(child: CircularProgressIndicator());
@@ -112,15 +128,26 @@ class _AdminPageState extends State<AdminPage> {
           .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final statusWidget = _streamStatus(snapshot);
+        if (statusWidget != null) return statusWidget;
 
         final docs = snapshot.data!.docs;
         final total = docs.length;
-        final pending = docs.where((d) => (d['status'] as String?) == 'pending').length;
-        final approved = docs.where((d) => (d['status'] as String?) == 'approved').length;
-        final totalAmount = docs
-            .where((d) => (d['status'] as String?) == 'approved')
-            .fold<double>(0, (sum, d) => sum + ((d['amount'] as num?)?.toDouble() ?? 0));
+        final pending = docs.where((d) {
+          final data = d.data() as Map<String, dynamic>? ?? {};
+          return (data['status'] as String?) == 'pending';
+        }).length;
+        final approved = docs.where((d) {
+          final data = d.data() as Map<String, dynamic>? ?? {};
+          return (data['status'] as String?) == 'approved';
+        }).length;
+        final totalAmount = docs.where((d) {
+          final data = d.data() as Map<String, dynamic>? ?? {};
+          return (data['status'] as String?) == 'approved';
+        }).fold<double>(0, (sum, d) {
+          final data = d.data() as Map<String, dynamic>? ?? {};
+          return sum + ((data['amount'] as num?)?.toDouble() ?? 0);
+        });
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -173,9 +200,10 @@ class _AdminPageState extends State<AdminPage> {
                     const Divider(height: 1),
                     // 데이터 rows
                     ...docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>? ?? {};
                       // status null 안전 처리
-                      final status = (doc['status'] as String?) ?? 'pending';
-                      final date = (doc['createdAt'] as dynamic)?.toDate();
+                      final status = (data['status'] as String?) ?? 'pending';
+                      final date = (data['createdAt'] as dynamic)?.toDate();
                       Color badgeBg;
                       Color badgeText;
                       if (status == 'approved') {
@@ -194,9 +222,9 @@ class _AdminPageState extends State<AdminPage> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             child: Row(
                               children: [
-                                Expanded(child: Text(doc['userName'] ?? '-', style: const TextStyle(fontSize: 13))),
-                                Expanded(child: Text(doc['description'] ?? '-', style: const TextStyle(fontSize: 13))),
-                                Expanded(child: Text('\$${((doc['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 13))),
+                                Expanded(child: Text(data['userName'] ?? '-', style: const TextStyle(fontSize: 13))),
+                                Expanded(child: Text(data['description'] ?? '-', style: const TextStyle(fontSize: 13))),
+                                Expanded(child: Text('\$${((data['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 13))),
                                 Expanded(child: Text(date != null ? '${date.year}/${date.month}/${date.day}' : '-', style: const TextStyle(fontSize: 13))),
                                 Expanded(
                                   child: Container(
@@ -257,7 +285,8 @@ class _AdminPageState extends State<AdminPage> {
           .where('churchId', isEqualTo: _churchId)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final statusWidget = _streamStatus(snapshot);
+        if (statusWidget != null) return statusWidget;
 
         final users = snapshot.data!.docs;
 
@@ -371,7 +400,8 @@ class _AdminPageState extends State<AdminPage> {
           .where('status', whereIn: ['approved', 'rejected'])
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final statusWidget = _streamStatus(snapshot);
+        if (statusWidget != null) return statusWidget;
 
         final docs = snapshot.data!.docs;
 
@@ -426,8 +456,9 @@ class _AdminPageState extends State<AdminPage> {
                       )
                     else
                       ...docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>? ?? {};      // ← 여기 새로 추가
                         // status null 안전 처리
-                        final status = (doc['status'] as String?) ?? 'pending';
+                        final status = data['status'] as String? ?? 'pending';
                         Color badgeBg;
                         Color badgeText;
                         if (status == 'approved') {
@@ -443,10 +474,10 @@ class _AdminPageState extends State<AdminPage> {
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               child: Row(
                                 children: [
-                                  Expanded(child: Text(doc['userName'] ?? '-', style: const TextStyle(fontSize: 13))),
-                                  Expanded(child: Text(doc['description'] ?? '-', style: const TextStyle(fontSize: 13))),
-                                  Expanded(child: Text('\$${((doc['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 13))),
-                                  Expanded(child: Text(doc['approvedBy'] ?? '-', style: const TextStyle(fontSize: 13))),
+                                  Expanded(child: Text(data['userName'] ?? '-', style: const TextStyle(fontSize: 13))),
+                                  Expanded(child: Text(data['description'] ?? '-', style: const TextStyle(fontSize: 13))),
+                                  Expanded(child: Text('\$${((data['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 13))),
+                                  Expanded(child: Text(data['approvedBy'] ?? '-', style: const TextStyle(fontSize: 13))),
                                   Expanded(
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -455,6 +486,207 @@ class _AdminPageState extends State<AdminPage> {
                                         status[0].toUpperCase() + status.substring(1),
                                         style: TextStyle(fontSize: 11, color: badgeText, fontWeight: FontWeight.w500),
                                       ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Divider(height: 1),
+                          ],
+                        );
+                      }),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+// ============================================
+  // Departments 탭 - 부서 추가 다이얼로그
+  // "+ Add Department" 버튼을 누르면 이 팝업창이 뜸
+  // ============================================
+  void _showAddDepartmentDialog() {
+    // 팝업 안 입력칸 3개를 위한 컨트롤러
+    final codeController = TextEditingController();       // 부서 코드 (예: 306)
+    final nameController = TextEditingController();       // 부서 이름 (예: Finance)
+    final chairNameController = TextEditingController();  // 부서장 이름
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add Department'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 부서 코드 입력칸
+                TextField(
+                  controller: codeController,
+                  decoration: const InputDecoration(labelText: 'Dept Code (e.g. 306)'),
+                ),
+                const SizedBox(height: 12),
+                // 부서 이름 입력칸
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Dept Name (e.g. Finance)'),
+                ),
+                const SizedBox(height: 12),
+                // 부서장 이름 입력칸
+                TextField(
+                  controller: chairNameController,
+                  decoration: const InputDecoration(labelText: 'Dept Chair Name'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            // 취소 버튼 - 그냥 팝업 닫기
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            // 추가 버튼 - Firestore에 저장 후 팝업 닫기
+            ElevatedButton(
+              onPressed: () async {
+                // 코드나 이름이 비어있으면 저장 안 함
+                if (codeController.text.isEmpty || nameController.text.isEmpty) return;
+
+                // Firestore의 churches/{churchId}/departments 서브컬렉션에
+                // 새 문서를 추가함 (add()는 자동으로 랜덤 ID 생성)
+                await FirebaseFirestore.instance
+                    .collection('churches')
+                    .doc(_churchId)
+                    .collection('departments')
+                    .add({
+                  'code': codeController.text.trim(),
+                  'name': nameController.text.trim(),
+                  'chairName': chairNameController.text.trim(),
+                  'chairUid': '', // 나중에 실제 유저 uid 연결할 자리 (승인 로직용)
+                });
+
+                if (context.mounted) Navigator.pop(context); // 저장 후 팝업 닫기
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFB71C1C),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ============================================
+  // Departments 탭 - 부서 목록 화면
+  // 사이드바에서 "Departments" 클릭하면 이 화면이 보임
+  // ============================================
+  Widget _buildDepartments() {
+    // churchId가 아직 로딩 안 됐으면 로딩 스피너만 보여줌
+    if (_churchId == null) return const Center(child: CircularProgressIndicator());
+
+    // StreamBuilder = Firestore 데이터를 실시간으로 계속 지켜보다가
+    // 데이터가 바뀌면(추가/삭제) 화면을 자동으로 다시 그려줌
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('churches')
+          .doc(_churchId)
+          .collection('departments')   // 이 교회의 부서 목록만 가져옴
+          .snapshots(),
+      builder: (context, snapshot) {
+        // 에러(예: 권한 부족) 또는 로딩 상태 처리
+        final statusWidget = _streamStatus(snapshot);
+        if (statusWidget != null) return statusWidget;
+
+        final depts = snapshot.data!.docs; // 부서 문서들 전체 리스트
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 제목 + "+ Add Department" 버튼을 한 줄에 양 끝 정렬
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Departments', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                  ElevatedButton.icon(
+                    onPressed: _showAddDepartmentDialog, // 버튼 누르면 위 팝업 함수 실행
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Department'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB71C1C),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // 부서 목록을 담을 흰색 카드
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  children: [
+                    // 테이블 헤더 (컬럼 이름)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: const [
+                          SizedBox(width: 80, child: Text('Code', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          Expanded(child: Text('Name', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          Expanded(child: Text('Dept Chair', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          SizedBox(width: 40, child: Text('')), // 삭제 버튼 자리
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+
+                    // 부서가 하나도 없으면 안내 문구
+                    if (depts.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: Text('No departments yet', style: TextStyle(color: Colors.grey))),
+                      )
+                    else
+                      // 부서 문서 하나씩 반복해서 한 줄씩 그림
+                      ...depts.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>? ?? {};
+                        final code = data['code'] as String? ?? '-';
+                        final name = data['name'] as String? ?? '-';
+                        final chairName = data['chairName'] as String? ?? '-';
+                        return Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              child: Row(
+                                children: [
+                                  SizedBox(width: 80, child: Text(code, style: const TextStyle(fontSize: 13))),
+                                  Expanded(child: Text(name, style: const TextStyle(fontSize: 13))),
+                                  Expanded(child: Text(chairName, style: const TextStyle(fontSize: 13))),
+                                  // 삭제 버튼 - 누르면 Firestore에서 이 문서 삭제
+                                  SizedBox(
+                                    width: 40,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                                      onPressed: () async {
+                                        await FirebaseFirestore.instance
+                                            .collection('churches')
+                                            .doc(_churchId)
+                                            .collection('departments')
+                                            .doc(doc.id)
+                                            .delete();
+                                      },
                                     ),
                                   ),
                                 ],
@@ -547,7 +779,7 @@ class _AdminPageState extends State<AdminPage> {
                     ? _buildUsers()
                     : _selectedMenu == 'history'
                         ? _buildHistory()
-                        : const SizedBox(),
+                        : _buildDepartments(),      // ← 'departments'는 여기로 떨어짐
           ),
         ],
       ),
