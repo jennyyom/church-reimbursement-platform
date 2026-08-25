@@ -62,7 +62,7 @@ Church finance teams still manage reimbursements with paper receipts, email thre
 |---|---|
 | member | Submit receipts, view own history |
 | approver | Approve or reject pending receipts |
-| admin | Manage users, view all expenses, export CSV |
+| admin | Manage users, view all expenses, export CSV, manage departments & activity codes |
 
 ---
 
