@@ -706,6 +706,256 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
+  // ============================================
+  // Activity Codes 탭 - 코드 추가 다이얼로그
+  // 모든 부서가 공용으로 쓰는 지출 항목 코드 (예: 10 Meal & Food)
+  // 특정 코드(91 Utilities 등)는 지정된 부서만 쓰도록 제한 가능
+  // ============================================
+  void _showAddActivityCodeDialog(List<QueryDocumentSnapshot> departments) {
+    final codeController = TextEditingController();   // 코드 (예: 10)
+    final nameController = TextEditingController();   // 이름 (예: Meal & Food)
+    final selectedDeptIds = <String>{};                // 비어있으면 전체 부서 허용
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add Activity Code'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: codeController,
+                      decoration: const InputDecoration(labelText: 'Code (e.g. 10)'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Name (e.g. Meal & Food)'),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Restrict to specific departments (leave all unchecked to allow every department)',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    // 부서 체크박스 목록 - 체크된 부서만 이 코드를 쓸 수 있음
+                    ...departments.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>? ?? {};
+                      final deptCode = data['code'] as String? ?? '-';
+                      final deptName = data['name'] as String? ?? '-';
+                      return CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: Text('$deptCode · $deptName', style: const TextStyle(fontSize: 13)),
+                        value: selectedDeptIds.contains(doc.id),
+                        onChanged: (checked) {
+                          setDialogState(() {
+                            if (checked == true) {
+                              selectedDeptIds.add(doc.id);
+                            } else {
+                              selectedDeptIds.remove(doc.id);
+                            }
+                          });
+                        },
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (codeController.text.isEmpty || nameController.text.isEmpty) return;
+
+                    await FirebaseFirestore.instance
+                        .collection('churches')
+                        .doc(_churchId)
+                        .collection('activityCodes')
+                        .add({
+                      'code': codeController.text.trim(),
+                      'name': nameController.text.trim(),
+                      'restrictedTo': selectedDeptIds.toList(), // 부서 문서 ID 목록, 빈 배열 = 전체 허용
+                    });
+
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB71C1C),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ============================================
+  // Activity Codes 탭 - 코드 목록 화면
+  // ============================================
+  Widget _buildActivityCodes() {
+    if (_churchId == null) return const Center(child: CircularProgressIndicator());
+
+    // 부서 목록을 먼저 구독 (제한 대상 부서 이름 표시 + 다이얼로그 체크박스용)
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('churches')
+          .doc(_churchId)
+          .collection('departments')
+          .snapshots(),
+      builder: (context, deptSnapshot) {
+        final deptStatus = _streamStatus(deptSnapshot);
+        if (deptStatus != null) return deptStatus;
+
+        final departments = deptSnapshot.data!.docs;
+        final deptNameById = {
+          for (final doc in departments)
+            doc.id: (doc.data() as Map<String, dynamic>?)?['name'] as String? ?? '-',
+        };
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('churches')
+              .doc(_churchId)
+              .collection('activityCodes')
+              .snapshots(),
+          builder: (context, codeSnapshot) {
+            final codeStatus = _streamStatus(codeSnapshot);
+            if (codeStatus != null) return codeStatus;
+
+            final codes = codeSnapshot.data!.docs;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Activity Codes', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                      ElevatedButton.icon(
+                        onPressed: () => _showAddActivityCodeDialog(departments),
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Add Activity Code'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFB71C1C),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: const [
+                              SizedBox(width: 60, child: Text('Code', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                              Expanded(child: Text('Name', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                              Expanded(flex: 2, child: Text('Restricted To', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                              SizedBox(width: 40, child: Text('')),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1),
+
+                        if (codes.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Center(child: Text('No activity codes yet', style: TextStyle(color: Colors.grey))),
+                          )
+                        else
+                          ...codes.map((doc) {
+                            final data = doc.data() as Map<String, dynamic>? ?? {};
+                            final code = data['code'] as String? ?? '-';
+                            final name = data['name'] as String? ?? '-';
+                            final restrictedTo = (data['restrictedTo'] as List<dynamic>?)?.cast<String>() ?? [];
+                            final restrictedLabel = restrictedTo.isEmpty
+                                ? 'All departments'
+                                : restrictedTo.map((id) => deptNameById[id] ?? '?').join(', ');
+                            return Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(width: 60, child: Text(code, style: const TextStyle(fontSize: 13))),
+                                      Expanded(child: Text(name, style: const TextStyle(fontSize: 13))),
+                                      Expanded(
+                                        flex: 2,
+                                        child: Text(restrictedLabel, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                                      ),
+                                      SizedBox(
+                                        width: 40,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                                          onPressed: () async {
+                                            await FirebaseFirestore.instance
+                                                .collection('churches')
+                                                .doc(_churchId)
+                                                .collection('activityCodes')
+                                                .doc(doc.id)
+                                                .delete();
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Divider(height: 1),
+                              ],
+                            );
+                          }),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 선택된 메뉴에 맞는 화면 반환
+  Widget _buildMainContent() {
+    switch (_selectedMenu) {
+      case 'users':
+        return _buildUsers();
+      case 'history':
+        return _buildHistory();
+      case 'departments':
+        return _buildDepartments();
+      case 'activityCodes':
+        return _buildActivityCodes();
+      case 'overview':
+      default:
+        return _buildOverview();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // churchId 로드 전 스피너
@@ -750,6 +1000,7 @@ class _AdminPageState extends State<AdminPage> {
                 _buildMenuItem(id: 'users', icon: Icons.people_outline, label: 'Users'),
                 _buildMenuItem(id: 'history', icon: Icons.history, label: 'History'),
                 _buildMenuItem(id: 'departments', icon: Icons.apartment, label: 'Departments'),
+                _buildMenuItem(id: 'activityCodes', icon: Icons.receipt_long, label: 'Activity Codes'),
                 const Spacer(),
                 // 로그아웃
                 Padding(
@@ -772,15 +1023,7 @@ class _AdminPageState extends State<AdminPage> {
             ),
           ),
           // 메인 콘텐츠
-          Expanded(
-            child: _selectedMenu == 'overview'
-                ? _buildOverview()
-                : _selectedMenu == 'users'
-                    ? _buildUsers()
-                    : _selectedMenu == 'history'
-                        ? _buildHistory()
-                        : _buildDepartments(),      // ← 'departments'는 여기로 떨어짐
-          ),
+          Expanded(child: _buildMainContent()),
         ],
       ),
     );

@@ -48,5 +48,18 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+
+    // 교회 activityCodes - 전체 부서 공용 지출 코드. 읽기는 같은 교회 멤버 전체, 쓰기는 admin만
+    match /churches/{churchId}/activityCodes/{codeId} {
+
+      // 읽기: 같은 교회 멤버
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId;
+
+      // 쓰기(추가/수정/삭제): admin만
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
   }
 }

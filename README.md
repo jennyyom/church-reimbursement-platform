@@ -35,10 +35,10 @@ Church finance teams still manage reimbursements with paper receipts, email thre
 | Receipt Upload | ✅ | Upload receipts via camera or gallery |
 | Expense Submission | ✅ | Submit with amount, description, and image |
 | Approval Workflow | ✅ | Approver dashboard with approve/reject + reason |
-| Admin Dashboard | ✅ | Overview, user management, history |
+| Admin Dashboard | ✅ | Overview, user management, history, departments, activity codes |
 | Export CSV | ✅ | Download all expenses as CSV |
 | Localization | ✅ | English, 한국어, Kiswahili |
-| OCR | 🔜 | Auto-extract text from receipt images (ML Kit) |
+| OCR | ✅ | Auto-extract amount from receipt images (ML Kit + Cloud Vision, via Firebase Function) |
 | AI Parsing | 🔜 | Convert OCR text to structured data (Claude / GPT-4) |
 | Planning Center / QuickBooks | 🔜 | Accounting integration |
 
@@ -50,7 +50,7 @@ Church finance teams still manage reimbursements with paper receipts, email thre
 |---|---|
 | Frontend | Flutter (iOS, Android, Web) |
 | Backend | Firebase (Firestore, Auth, Storage, Functions) |
-| OCR | Google ML Kit (planned) |
+| OCR | Google ML Kit + Cloud Vision API (via Firebase Functions) |
 | AI Parsing | LLM API (planned) |
 | Hosting | Firebase Hosting |
 
@@ -77,6 +77,13 @@ churches/{churchId}/expenses/{expenseId}
   - imageUrl, amount, description
   - status (pending / approved / rejected)
   - createdAt, approvedBy, approvedAt, rejectReason
+
+churches/{churchId}/departments/{deptId}
+  - code, name, chairName, chairUid
+
+churches/{churchId}/activityCodes/{codeId}
+  - code, name
+  - restrictedTo (department doc IDs; empty = all departments)
 ```
 
 ---
@@ -84,19 +91,19 @@ churches/{churchId}/expenses/{expenseId}
 ## Installation
 
 ```bash
-git clone https://github.com/your-repo/church-reimbursement-platform.git
+git clone https://github.com/jennyyom/church-reimbursement-platform.git
 cd church-reimbursement-platform
 flutter pub get
 flutter run
 ```
 
-Create a `.env` file:
+Firebase config (`lib/firebase_options.dart`) is generated via `flutterfire configure` and already checked into the repo, so no `.env` file is needed to run the app.
 
-```
-FIREBASE_API_KEY=
-FIREBASE_PROJECT_ID=
-GOOGLE_VISION_API_KEY=
-LLM_API_KEY=
+To deploy backend changes (Firestore rules, Cloud Functions):
+
+```bash
+firebase deploy --only firestore:rules
+firebase deploy --only functions
 ```
 
 ---
@@ -108,9 +115,9 @@ LLM_API_KEY=
 - [x] Receipt upload + Firebase Storage
 - [x] Expense submission
 - [x] Approver dashboard (approve / reject)
-- [x] Admin dashboard (overview / users / history)
+- [x] Admin dashboard (overview / users / history / departments / activity codes)
 - [x] Export CSV
-- [ ] OCR — receipt image → text (ML Kit)
+- [x] OCR — receipt image → amount (ML Kit + Cloud Vision)
 - [ ] AI parsing — text → structured JSON
 - [ ] Firebase Hosting deployment
 - [ ] Planning Center / QuickBooks integration
