@@ -279,12 +279,30 @@ class _AdminPageState extends State<AdminPage> {
   // 유저 관리 — 역할 변경 드롭다운
   Widget _buildUsers() {
     if (_churchId == null) return const Center(child: CircularProgressIndicator());
+
+    // 부서 목록을 먼저 구독 (Department 드롭다운 옵션용)
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('users')
-          .where('churchId', isEqualTo: _churchId)
+          .collection('churches')
+          .doc(_churchId)
+          .collection('departments')
           .snapshots(),
-      builder: (context, snapshot) {
+      builder: (context, deptSnapshot) {
+        final deptStatus = _streamStatus(deptSnapshot);
+        if (deptStatus != null) return deptStatus;
+
+        final departments = deptSnapshot.data!.docs;
+        final deptNameById = {
+          for (final doc in departments)
+            doc.id: (doc.data() as Map<String, dynamic>?)?['name'] as String? ?? '-',
+        };
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where('churchId', isEqualTo: _churchId)
+              .snapshots(),
+          builder: (context, snapshot) {
         final statusWidget = _streamStatus(snapshot);
         if (statusWidget != null) return statusWidget;
 
@@ -312,6 +330,7 @@ class _AdminPageState extends State<AdminPage> {
                         children: const [
                           Expanded(child: Text('Name', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Email', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          SizedBox(width: 140, child: Text('Department', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           SizedBox(width: 120, child: Text('Role', style: TextStyle(fontSize: 12, color: Colors.grey))),
                         ],
                       ),
@@ -324,6 +343,9 @@ class _AdminPageState extends State<AdminPage> {
                       final role = data['role'] as String? ?? 'member';
                       final name = data['name'] as String? ?? '?';
                       final email = data['email'] as String? ?? '-';
+                      // departmentId가 없거나 이미 삭제된 부서를 가리키면 미배정으로 취급
+                      final rawDeptId = data['departmentId'] as String?;
+                      final departmentId = deptNameById.containsKey(rawDeptId) ? rawDeptId : null;
                       return Column(
                         children: [
                           Padding(
@@ -348,6 +370,39 @@ class _AdminPageState extends State<AdminPage> {
                                   ),
                                 ),
                                 Expanded(child: Text(email, style: const TextStyle(fontSize: 13))),
+                                // department 드롭다운 - 기본값 없음(Unassigned), admin이 직접 배정
+                                SizedBox(
+                                  width: 140,
+                                  child: DropdownButtonFormField<String?>(
+                                    value: departmentId,
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                      isDense: true,
+                                    ),
+                                    items: [
+                                      const DropdownMenuItem<String?>(
+                                        value: null,
+                                        child: Text('Unassigned', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                                      ),
+                                      ...departments.map((deptDoc) {
+                                        final deptData = deptDoc.data() as Map<String, dynamic>? ?? {};
+                                        final deptCode = deptData['code'] as String? ?? '-';
+                                        final deptName = deptData['name'] as String? ?? '-';
+                                        return DropdownMenuItem<String?>(
+                                          value: deptDoc.id,
+                                          child: Text('$deptCode · $deptName', style: const TextStyle(fontSize: 13)),
+                                        );
+                                      }),
+                                    ],
+                                    onChanged: (newDeptId) async {
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(doc.id)
+                                          .update({'departmentId': newDeptId});
+                                    },
+                                  ),
+                                ),
                                 // role 드롭다운 — Expanded 대신 SizedBox로 assertion 에러 방지
                                 SizedBox(
                                   width: 120,
@@ -384,6 +439,8 @@ class _AdminPageState extends State<AdminPage> {
               ),
             ],
           ),
+        );
+          },
         );
       },
     );

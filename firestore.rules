@@ -11,7 +11,7 @@ service cloud.firestore {
     && request.auth.uid == userId;
   allow update: if request.auth != null
     && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']);
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'departmentId']);
 	}
 
     // 교회 정보는 누구나 읽기 가능 (초대 코드 확인용)
