@@ -830,6 +830,7 @@ class _AdminPageState extends State<AdminPage> {
               .collection('churches')
               .doc(_churchId)
               .collection('activityCodes')
+              .orderBy('code')
               .snapshots(),
           builder: (context, codeSnapshot) {
             final codeStatus = _streamStatus(codeSnapshot);
