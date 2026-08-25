@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import '../models/expense.dart';
 import '../models/app_user.dart';
 import 'package:flutter/foundation.dart'; // kIsWeb 체크용
+import 'dart:ui' as ui; // 이미지 디코딩 가능 여부 검증용
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; // 앱 OCR
 
 import 'package:http/http.dart' as http; // Vision API 호출
@@ -34,6 +35,18 @@ class _UploadPageState extends State<UploadPage> {
 
     if (picked != null) {
       final bytes = await picked.readAsBytes();
+
+      // 실제로 디코딩 가능한 이미지인지 확인 — 확장자만 .jpg인 동영상/손상된 파일 등 걸러냄
+      try {
+        final codec = await ui.instantiateImageCodec(bytes);
+        codec.dispose();
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("This file doesn't look like a valid image. Please choose a photo of your receipt.")),
+        );
+        return;
+      }
 
       // 이미지 압축 — 앱(Android/iOS)에서만, 웹은 미지원
       if (!kIsWeb) {
