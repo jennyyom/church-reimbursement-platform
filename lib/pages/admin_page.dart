@@ -375,6 +375,7 @@ class _AdminPageState extends State<AdminPage> {
                                   width: 140,
                                   child: DropdownButtonFormField<String?>(
                                     value: departmentId,
+                                    isExpanded: true, // 긴 부서명이 넘칠 때 줄바꿈 대신 잘라서 표시
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       contentPadding: EdgeInsets.zero,
@@ -391,7 +392,11 @@ class _AdminPageState extends State<AdminPage> {
                                         final deptName = deptData['name'] as String? ?? '-';
                                         return DropdownMenuItem<String?>(
                                           value: deptDoc.id,
-                                          child: Text('$deptCode · $deptName', style: const TextStyle(fontSize: 13)),
+                                          child: Text(
+                                            '$deptCode · $deptName',
+                                            style: const TextStyle(fontSize: 13),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         );
                                       }),
                                     ],
@@ -408,6 +413,7 @@ class _AdminPageState extends State<AdminPage> {
                                   width: 120,
                                   child: DropdownButtonFormField<String>(
                                     value: role,
+                                    isExpanded: true,
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       contentPadding: EdgeInsets.zero,
@@ -563,78 +569,135 @@ class _AdminPageState extends State<AdminPage> {
   }
 
 // ============================================
-  // Departments 탭 - 부서 추가 다이얼로그
-  // "+ Add Department" 버튼을 누르면 이 팝업창이 뜸
+  // Departments 탭 - 부서 추가/수정 다이얼로그
+  // existing이 없으면 추가, 있으면 그 문서를 수정 (문서 ID를 유지해야
+  // Activity Codes의 restrictedTo 참조가 안 끊어짐)
   // ============================================
-  void _showAddDepartmentDialog() {
-    // 팝업 안 입력칸 3개를 위한 컨트롤러
-    final codeController = TextEditingController();       // 부서 코드 (예: 306)
-    final nameController = TextEditingController();       // 부서 이름 (예: Finance)
-    final chairNameController = TextEditingController();  // 부서장 이름
+  void _showDepartmentDialog({DocumentSnapshot? existing}) {
+    final existingData = existing?.data() as Map<String, dynamic>? ?? {};
+    final codeController = TextEditingController(text: existingData['code'] as String? ?? '');
+    final nameController = TextEditingController(text: existingData['name'] as String? ?? '');
+    // 부서장 uid - 처음엔 기존 값으로, 없으면 미배정
+    String? selectedChairUid = existingData['chairUid'] as String?;
+    if (selectedChairUid != null && selectedChairUid.isEmpty) selectedChairUid = null;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Department'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 부서 코드 입력칸
-                TextField(
-                  controller: codeController,
-                  decoration: const InputDecoration(labelText: 'Dept Code (e.g. 306)'),
-                ),
-                const SizedBox(height: 12),
-                // 부서 이름 입력칸
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Dept Name (e.g. Finance)'),
-                ),
-                const SizedBox(height: 12),
-                // 부서장 이름 입력칸
-                TextField(
-                  controller: chairNameController,
-                  decoration: const InputDecoration(labelText: 'Dept Chair Name'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            // 취소 버튼 - 그냥 팝업 닫기
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            // 추가 버튼 - Firestore에 저장 후 팝업 닫기
-            ElevatedButton(
-              onPressed: () async {
-                // 코드나 이름이 비어있으면 저장 안 함
-                if (codeController.text.isEmpty || nameController.text.isEmpty) return;
+        // 부서장 후보 목록 - 이 교회 유저 전체를 한 번만 불러옴
+        return FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .where('churchId', isEqualTo: _churchId)
+              .get(),
+          builder: (context, userSnapshot) {
+            if (!userSnapshot.hasData) {
+              return const AlertDialog(
+                content: SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
+              );
+            }
 
-                // Firestore의 churches/{churchId}/departments 서브컬렉션에
-                // 새 문서를 추가함 (add()는 자동으로 랜덤 ID 생성)
-                await FirebaseFirestore.instance
-                    .collection('churches')
-                    .doc(_churchId)
-                    .collection('departments')
-                    .add({
-                  'code': codeController.text.trim(),
-                  'name': nameController.text.trim(),
-                  'chairName': chairNameController.text.trim(),
-                  'chairUid': '', // 나중에 실제 유저 uid 연결할 자리 (승인 로직용)
-                });
+            final users = userSnapshot.data!.docs;
+            final userNameById = {
+              for (final u in users) u.id: (u.data() as Map<String, dynamic>?)?['name'] as String? ?? '?',
+            };
+            // 선택된 chairUid가 더 이상 존재하지 않는 유저면(탈퇴 등) 선택 해제
+            if (selectedChairUid != null && !userNameById.containsKey(selectedChairUid)) {
+              selectedChairUid = null;
+            }
 
-                if (context.mounted) Navigator.pop(context); // 저장 후 팝업 닫기
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+                return AlertDialog(
+                  title: Text(existing == null ? 'Add Department' : 'Edit Department'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 부서 코드 입력칸
+                        TextField(
+                          controller: codeController,
+                          decoration: const InputDecoration(labelText: 'Dept Code (e.g. 306)'),
+                        ),
+                        const SizedBox(height: 12),
+                        // 부서 이름 입력칸
+                        TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(labelText: 'Dept Name (e.g. Finance)'),
+                        ),
+                        const SizedBox(height: 12),
+                        // 부서장 선택 - 자유 텍스트 대신 실제 유저 중에서 고름
+                        DropdownButtonFormField<String?>(
+                          value: selectedChairUid,
+                          isExpanded: true,
+                          decoration: const InputDecoration(labelText: 'Dept Chair'),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('Unassigned', style: TextStyle(color: Colors.grey)),
+                            ),
+                            ...users.map((userDoc) {
+                              final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+                              final userName = userData['name'] as String? ?? '?';
+                              final userRole = userData['role'] as String? ?? 'member';
+                              return DropdownMenuItem<String?>(
+                                value: userDoc.id,
+                                child: Text('$userName ($userRole)', overflow: TextOverflow.ellipsis),
+                              );
+                            }),
+                          ],
+                          onChanged: (newChairUid) {
+                            setDialogState(() => selectedChairUid = newChairUid);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    // 취소 버튼 - 그냥 팝업 닫기
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    // 저장 버튼 - Firestore에 추가/수정 후 팝업 닫기
+                    ElevatedButton(
+                      onPressed: () async {
+                        // 코드나 이름이 비어있으면 저장 안 함
+                        if (codeController.text.isEmpty || nameController.text.isEmpty) return;
+
+                        final data = {
+                          'code': codeController.text.trim(),
+                          'name': nameController.text.trim(),
+                          'chairUid': selectedChairUid ?? '',
+                          // chairName은 선택된 유저 이름을 그대로 복사(denormalize) -
+                          // 목록 렌더링할 때 유저를 다시 안 불러와도 되게
+                          'chairName': selectedChairUid != null ? (userNameById[selectedChairUid] ?? '') : '',
+                        };
+
+                        final deptsRef = FirebaseFirestore.instance
+                            .collection('churches')
+                            .doc(_churchId)
+                            .collection('departments');
+
+                        if (existing == null) {
+                          await deptsRef.add(data);
+                        } else {
+                          await deptsRef.doc(existing.id).update(data);
+                        }
+
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB71C1C),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(existing == null ? 'Add' : 'Save'),
+                    ),
+                  ],
+                );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFB71C1C),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Add'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -674,7 +737,7 @@ class _AdminPageState extends State<AdminPage> {
                 children: [
                   const Text('Departments', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                   ElevatedButton.icon(
-                    onPressed: _showAddDepartmentDialog, // 버튼 누르면 위 팝업 함수 실행
+                    onPressed: () => _showDepartmentDialog(), // 버튼 누르면 위 팝업 함수 실행 (추가 모드)
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('Add Department'),
                     style: ElevatedButton.styleFrom(
@@ -703,7 +766,7 @@ class _AdminPageState extends State<AdminPage> {
                           SizedBox(width: 80, child: Text('Code', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Name', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Dept Chair', style: TextStyle(fontSize: 12, color: Colors.grey))),
-                          SizedBox(width: 40, child: Text('')), // 삭제 버튼 자리
+                          SizedBox(width: 76, child: Text('')), // 수정/삭제 버튼 자리
                         ],
                       ),
                     ),
@@ -731,6 +794,14 @@ class _AdminPageState extends State<AdminPage> {
                                   SizedBox(width: 80, child: Text(code, style: const TextStyle(fontSize: 13))),
                                   Expanded(child: Text(name, style: const TextStyle(fontSize: 13))),
                                   Expanded(child: Text(chairName, style: const TextStyle(fontSize: 13))),
+                                  // 수정 버튼 - 기존 값 채워진 다이얼로그 열기
+                                  SizedBox(
+                                    width: 36,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
+                                      onPressed: () => _showDepartmentDialog(existing: doc),
+                                    ),
+                                  ),
                                   // 삭제 버튼 - 누르면 Firestore에서 이 문서 삭제
                                   SizedBox(
                                     width: 40,
