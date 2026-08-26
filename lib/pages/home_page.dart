@@ -164,7 +164,8 @@ void _showLanguagePicker() {
               : <Expense>[];
 
           return ListView(
-            padding: const EdgeInsets.all(14),
+            // 안드로이드 제스처 네비게이션 바 등 시스템 하단 영역만큼 여백 추가 - 마지막 항목이 가려지지 않도록
+            padding: EdgeInsets.fromLTRB(14, 14, 14, 14 + MediaQuery.of(context).padding.bottom),
             children: [
               // 인사말
               Padding(
