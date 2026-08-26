@@ -882,14 +882,21 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   // ============================================
-  // Activity Codes 탭 - 코드 추가 다이얼로그
+  // Activity Codes 탭 - 코드 추가/수정 다이얼로그
   // 모든 부서가 공용으로 쓰는 지출 항목 코드 (예: 10 Meal & Food)
   // 특정 코드(91 Utilities 등)는 지정된 부서만 쓰도록 제한 가능
   // ============================================
-  void _showAddActivityCodeDialog(List<QueryDocumentSnapshot> departments) {
-    final codeController = TextEditingController();   // 코드 (예: 10)
-    final nameController = TextEditingController();   // 이름 (예: Meal & Food)
-    final selectedDeptIds = <String>{};                // 비어있으면 전체 부서 허용
+  void _showActivityCodeDialog({
+    required List<QueryDocumentSnapshot> departments,
+    DocumentSnapshot? existing, // null이면 추가, 있으면 수정(문서 ID 유지)
+  }) {
+    final existingData = existing?.data() as Map<String, dynamic>? ?? {};
+    final codeController = TextEditingController(text: existingData['code'] as String? ?? '');
+    final nameController = TextEditingController(text: existingData['name'] as String? ?? '');
+    // 비어있으면 전체 부서 허용
+    final selectedDeptIds = {
+      ...((existingData['restrictedTo'] as List<dynamic>?)?.cast<String>() ?? []),
+    };
 
     showDialog(
       context: context,
@@ -897,7 +904,7 @@ class _AdminPageState extends State<AdminPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Add Activity Code'),
+              title: Text(existing == null ? 'Add Activity Code' : 'Edit Activity Code'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -951,15 +958,22 @@ class _AdminPageState extends State<AdminPage> {
                   onPressed: () async {
                     if (codeController.text.isEmpty || nameController.text.isEmpty) return;
 
-                    await FirebaseFirestore.instance
-                        .collection('churches')
-                        .doc(_churchId)
-                        .collection('activityCodes')
-                        .add({
+                    final data = {
                       'code': codeController.text.trim(),
                       'name': nameController.text.trim(),
                       'restrictedTo': selectedDeptIds.toList(), // 부서 문서 ID 목록, 빈 배열 = 전체 허용
-                    });
+                    };
+
+                    final codesRef = FirebaseFirestore.instance
+                        .collection('churches')
+                        .doc(_churchId)
+                        .collection('activityCodes');
+
+                    if (existing == null) {
+                      await codesRef.add(data);
+                    } else {
+                      await codesRef.doc(existing.id).update(data);
+                    }
 
                     if (context.mounted) Navigator.pop(context);
                   },
@@ -967,7 +981,7 @@ class _AdminPageState extends State<AdminPage> {
                     backgroundColor: const Color(0xFFB71C1C),
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Add'),
+                  child: Text(existing == null ? 'Add' : 'Save'),
                 ),
               ],
             );
@@ -1023,7 +1037,7 @@ class _AdminPageState extends State<AdminPage> {
                     children: [
                       const Text('Activity Codes', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                       ElevatedButton.icon(
-                        onPressed: () => _showAddActivityCodeDialog(departments),
+                        onPressed: () => _showActivityCodeDialog(departments: departments),
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text('Add Activity Code'),
                         style: ElevatedButton.styleFrom(
@@ -1050,7 +1064,7 @@ class _AdminPageState extends State<AdminPage> {
                               SizedBox(width: 60, child: Text('Code', style: TextStyle(fontSize: 12, color: Colors.grey))),
                               Expanded(child: Text('Name', style: TextStyle(fontSize: 12, color: Colors.grey))),
                               Expanded(flex: 2, child: Text('Restricted To', style: TextStyle(fontSize: 12, color: Colors.grey))),
-                              SizedBox(width: 40, child: Text('')),
+                              SizedBox(width: 76, child: Text('')), // 수정/삭제 버튼 자리
                             ],
                           ),
                         ),
@@ -1081,6 +1095,17 @@ class _AdminPageState extends State<AdminPage> {
                                       Expanded(
                                         flex: 2,
                                         child: Text(restrictedLabel, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                                      ),
+                                      // 수정 버튼 - 기존 값 채워진 다이얼로그 열기
+                                      SizedBox(
+                                        width: 36,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
+                                          onPressed: () => _showActivityCodeDialog(
+                                            departments: departments,
+                                            existing: doc,
+                                          ),
+                                        ),
                                       ),
                                       SizedBox(
                                         width: 40,
