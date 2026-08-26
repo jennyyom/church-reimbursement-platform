@@ -17,6 +17,7 @@ class UserHomePage extends StatefulWidget {
 class _UserHomePageState extends State<UserHomePage> {
   String? _userName;
   String? _churchId;
+  String _statusFilter = 'all'; // all / pending / approved / rejected
 
   @override
   void initState() {
@@ -160,6 +161,7 @@ void _showLanguagePicker() {
               ? snapshot.data!.docs
                   .where((d) => (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] != true)
                   .map((d) => Expense.fromFirestore(d))
+                  .where((e) => _statusFilter == 'all' || e.status.name == _statusFilter)
                   .toList()
               : <Expense>[];
 
@@ -238,13 +240,34 @@ void _showLanguagePicker() {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'My Receipts',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'My Receipts',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        // 상태 필터 - 전체/pending/approved/rejected 중 골라서 보기
+                        DropdownButton<String>(
+                          value: _statusFilter,
+                          isDense: true,
+                          underline: const SizedBox.shrink(),
+                          style: const TextStyle(fontSize: 12, color: Colors.indigo),
+                          items: const [
+                            DropdownMenuItem(value: 'all', child: Text('All')),
+                            DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                            DropdownMenuItem(value: 'approved', child: Text('Approved')),
+                            DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => _statusFilter = v);
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     if (expenses.isEmpty)
