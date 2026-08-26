@@ -31,14 +31,18 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid;
 
-      // 승인/거절: approver, admin만
+      // 승인/거절: approver, admin만 / soft-delete(hiddenFromMember만 수정): 본인 pending·rejected 건
       allow update: if request.auth != null
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['approver', 'admin'];
+        && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['approver', 'admin']
+            || (resource.data.uid == request.auth.uid
+                && resource.data.status in ['pending', 'rejected']
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hiddenFromMember'])));
 
-      // 삭제: 본인이 올린 건이고 아직 pending일 때만, 또는 admin은 상태 상관없이
+      // 삭제(진짜 삭제): admin만, 그리고 approved는 삭제 불가(지급 완료 기록은 앱에서 영구 보존)
+      // member는 위 soft-delete만 가능, 감사 기록은 admin 쪽에 남음
       allow delete: if request.auth != null
-        && ((resource.data.uid == request.auth.uid && resource.data.status == 'pending')
-            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+        && resource.data.status != 'approved'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // 교회 departments - 읽기는 같은 교회 멤버 전체, 쓰기(추가/삭제)는 admin만
