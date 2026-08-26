@@ -38,6 +38,36 @@ class _UserHomePageState extends State<UserHomePage> {
     });
   }
 
+  // 영수증 삭제 확인 팝업 - 확인하면 soft-delete(hiddenFromMember 플래그만 세움,
+  // 문서 자체는 admin이 계속 볼 수 있도록 남겨둠)
+  Future<void> _confirmDeleteExpense(String expenseId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this receipt?'),
+        content: const Text('This can\'t be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await FirebaseFirestore.instance
+        .collection('churches')
+        .doc(_churchId)
+        .collection('expenses')
+        .doc(expenseId)
+        .update({'hiddenFromMember': true});
+  }
+
   // 언어 선택 바텀시트
 void _showLanguagePicker() {
   showModalBottomSheet(
@@ -124,8 +154,11 @@ void _showLanguagePicker() {
       body: StreamBuilder<QuerySnapshot>(
         stream: expenseStream,
         builder: (context, snapshot) {
+          // hiddenFromMember(soft-delete)로 표시된 건 목록에서 제외
+          // (Firestore != 쿼리는 필드 자체가 없는 문서를 걸러내버려서 클라이언트에서 필터링)
           final expenses = snapshot.hasData
               ? snapshot.data!.docs
+                  .where((d) => (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] != true)
                   .map((d) => Expense.fromFirestore(d))
                   .toList()
               : <Expense>[];
@@ -299,6 +332,16 @@ void _showLanguagePicker() {
                                         ),
                                       ),
                                     ),
+                                    // 삭제 버튼 - pending/rejected만 (approved는 지급 기록이라 보존)
+                                    if (e.status == ExpenseStatus.pending ||
+                                        e.status == ExpenseStatus.rejected) ...[
+                                      const SizedBox(width: 4),
+                                      InkWell(
+                                        onTap: () => _confirmDeleteExpense(e.id),
+                                        child: Icon(Icons.delete_outline,
+                                            size: 18, color: Colors.grey.shade400),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ],
