@@ -16,6 +16,52 @@ class _AdminPageState extends State<AdminPage> {
   String _selectedMenu = 'overview';
   String? _churchId;
 
+  // Overview/History 각각 독립적인 기간 필터 (데이터 많아져도 한 번에 다 안 불러오게)
+  String _overviewPeriod = 'month';
+  String _historyPeriod = 'month';
+
+  // 기간 프리셋 -> 시작 날짜. 'all'이면 null(제한 없음)
+  DateTime? _periodStart(String period) {
+    final now = DateTime.now();
+    switch (period) {
+      case 'month':
+        return DateTime(now.year, now.month, 1);
+      case 'quarter':
+        final quarterStartMonth = ((now.month - 1) ~/ 3) * 3 + 1;
+        return DateTime(now.year, quarterStartMonth, 1);
+      case 'year':
+        return DateTime(now.year, 1, 1);
+      case 'all':
+      default:
+        return null;
+    }
+  }
+
+  // 기간 프리셋 드롭다운 위젯 (Overview/History 공용)
+  Widget _buildPeriodDropdown(String value, ValueChanged<String> onChanged) {
+    return SizedBox(
+      width: 140,
+      child: DropdownButtonFormField<String>(
+        value: value,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          isDense: true,
+        ),
+        items: const [
+          DropdownMenuItem(value: 'month', child: Text('This Month', style: TextStyle(fontSize: 13))),
+          DropdownMenuItem(value: 'quarter', child: Text('This Quarter', style: TextStyle(fontSize: 13))),
+          DropdownMenuItem(value: 'year', child: Text('This Year', style: TextStyle(fontSize: 13))),
+          DropdownMenuItem(value: 'all', child: Text('All Time', style: TextStyle(fontSize: 13))),
+        ],
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -149,13 +195,17 @@ class _AdminPageState extends State<AdminPage> {
   // Overview — 통계 4개 + 전체 내역
   Widget _buildOverview() {
     if (_churchId == null) return const Center(child: CircularProgressIndicator());
+    final periodStart = _periodStart(_overviewPeriod);
+    Query query = FirebaseFirestore.instance
+        .collection('churches')
+        .doc(_churchId)
+        .collection('expenses')
+        .orderBy('createdAt', descending: true);
+    if (periodStart != null) {
+      query = query.where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(periodStart));
+    }
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('churches')
-          .doc(_churchId)
-          .collection('expenses')
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+      stream: query.snapshots(),
       builder: (context, snapshot) {
         final statusWidget = _streamStatus(snapshot);
         if (statusWidget != null) return statusWidget;
@@ -188,7 +238,13 @@ class _AdminPageState extends State<AdminPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Overview', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Overview', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                  _buildPeriodDropdown(_overviewPeriod, (v) => setState(() => _overviewPeriod = v)),
+                ],
+              ),
               const SizedBox(height: 20),
               // 통계 카드 4개
               Row(
@@ -502,13 +558,18 @@ class _AdminPageState extends State<AdminPage> {
   // 히스토리 — Approved/Rejected 전체 내역
   Widget _buildHistory() {
     if (_churchId == null) return const Center(child: CircularProgressIndicator());
+    final periodStart = _periodStart(_historyPeriod);
+    Query query = FirebaseFirestore.instance
+        .collection('churches')
+        .doc(_churchId)
+        .collection('expenses')
+        .where('status', whereIn: ['approved', 'rejected'])
+        .orderBy('createdAt', descending: true);
+    if (periodStart != null) {
+      query = query.where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(periodStart));
+    }
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('churches')
-          .doc(_churchId)
-          .collection('expenses')
-          .where('status', whereIn: ['approved', 'rejected'])
-          .snapshots(),
+      stream: query.snapshots(),
       builder: (context, snapshot) {
         final statusWidget = _streamStatus(snapshot);
         if (statusWidget != null) return statusWidget;
@@ -525,14 +586,20 @@ class _AdminPageState extends State<AdminPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('History', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                  ElevatedButton.icon(
-                    onPressed: _exportCsv,
-                    icon: const Icon(Icons.download, size: 16),
-                    label: const Text('Export CSV'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFB71C1C),
-                      foregroundColor: Colors.white,
-                    ),
+                  Row(
+                    children: [
+                      _buildPeriodDropdown(_historyPeriod, (v) => setState(() => _historyPeriod = v)),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: _exportCsv,
+                        icon: const Icon(Icons.download, size: 16),
+                        label: const Text('Export CSV'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFB71C1C),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -553,6 +620,7 @@ class _AdminPageState extends State<AdminPage> {
                           Expanded(child: Text('Name', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Description', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Amount', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          Expanded(child: Text('Date', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Approved By', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Status', style: TextStyle(fontSize: 12, color: Colors.grey))),
                         ],
@@ -569,6 +637,7 @@ class _AdminPageState extends State<AdminPage> {
                         final data = doc.data() as Map<String, dynamic>? ?? {};      // ← 여기 새로 추가
                         // status null 안전 처리
                         final status = data['status'] as String? ?? 'pending';
+                        final date = (data['createdAt'] as dynamic)?.toDate();
                         Color badgeBg;
                         Color badgeText;
                         if (status == 'approved') {
@@ -587,6 +656,7 @@ class _AdminPageState extends State<AdminPage> {
                                   Expanded(child: Text(data['userName'] ?? '-', style: const TextStyle(fontSize: 13))),
                                   Expanded(child: Text(data['description'] ?? '-', style: const TextStyle(fontSize: 13))),
                                   Expanded(child: Text('\$${((data['amount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 13))),
+                                  Expanded(child: Text(date != null ? '${date.year}/${date.month}/${date.day}' : '-', style: const TextStyle(fontSize: 13))),
                                   Expanded(child: Text(data['approvedBy'] ?? '-', style: const TextStyle(fontSize: 13))),
                                   Expanded(
                                     child: Container(
