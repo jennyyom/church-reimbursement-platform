@@ -478,12 +478,17 @@ class _ApproverPageState extends State<ApproverPage>
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData) {
           return Center(child: Text(l10n.reviewReceipts));
         }
+        // member가 soft-delete(hiddenFromMember)로 철회한 건은 승인 대상에서 제외
         final expenses = snapshot.data!.docs
+            .where((d) => (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] != true)
             .map((doc) => Expense.fromFirestore(doc))
             .toList();
+        if (expenses.isEmpty) {
+          return Center(child: Text(l10n.reviewReceipts));
+        }
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           itemCount: expenses.length,
@@ -508,15 +513,23 @@ class _ApproverPageState extends State<ApproverPage>
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData) {
           return const Center(
             child: Text('No history yet',
                 style: TextStyle(color: Colors.grey)),
           );
         }
+        // member가 soft-delete한 건은 approver 본인 History에서도 제외
         final expenses = snapshot.data!.docs
+            .where((d) => (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] != true)
             .map((doc) => Expense.fromFirestore(doc))
             .toList();
+        if (expenses.isEmpty) {
+          return const Center(
+            child: Text('No history yet',
+                style: TextStyle(color: Colors.grey)),
+          );
+        }
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           itemCount: expenses.length,
