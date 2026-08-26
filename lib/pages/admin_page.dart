@@ -71,6 +71,35 @@ class _AdminPageState extends State<AdminPage> {
     await downloadCsv(csv, 'expenses.csv');   //수정
   }
 
+  // 지출 건 삭제 확인 팝업 - admin은 상태 상관없이 삭제 가능
+  Future<void> _confirmDeleteExpense(String expenseId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this receipt?'),
+        content: const Text('This can\'t be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await FirebaseFirestore.instance
+        .collection('churches')
+        .doc(_churchId)
+        .collection('expenses')
+        .doc(expenseId)
+        .delete();
+  }
+
   // 사이드바 메뉴 아이템
   Widget _buildMenuItem({
     required String id,
@@ -131,7 +160,12 @@ class _AdminPageState extends State<AdminPage> {
         final statusWidget = _streamStatus(snapshot);
         if (statusWidget != null) return statusWidget;
 
-        final docs = snapshot.data!.docs;
+        // member가 지운(hiddenFromMember) 건은 상태 상관없이 Overview에서 제외.
+        // rejected/approved 기록은 History 탭이 항상 그대로 보존하고 있어서 여기선 중복 유지 안 함
+        final docs = snapshot.data!.docs.where((d) {
+          final data = d.data() as Map<String, dynamic>? ?? {};
+          return data['hiddenFromMember'] != true;
+        }).toList();
         final total = docs.length;
         final pending = docs.where((d) {
           final data = d.data() as Map<String, dynamic>? ?? {};
@@ -194,6 +228,7 @@ class _AdminPageState extends State<AdminPage> {
                           Expanded(child: Text('Amount', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Date', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Status', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          SizedBox(width: 40, child: Text('')), // 삭제 버튼 자리
                         ],
                       ),
                     ),
@@ -235,6 +270,16 @@ class _AdminPageState extends State<AdminPage> {
                                       style: TextStyle(fontSize: 11, color: badgeText, fontWeight: FontWeight.w500),
                                     ),
                                   ),
+                                ),
+                                // approved 건은 삭제 버튼 자체를 안 보여줌 (지급 완료 기록은 영구 보존)
+                                SizedBox(
+                                  width: 40,
+                                  child: status == 'approved'
+                                      ? null
+                                      : IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                                          onPressed: () => _confirmDeleteExpense(doc.id),
+                                        ),
                                 ),
                               ],
                             ),
@@ -330,7 +375,8 @@ class _AdminPageState extends State<AdminPage> {
                         children: const [
                           Expanded(child: Text('Name', style: TextStyle(fontSize: 12, color: Colors.grey))),
                           Expanded(child: Text('Email', style: TextStyle(fontSize: 12, color: Colors.grey))),
-                          SizedBox(width: 140, child: Text('Department', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          SizedBox(width: 200, child: Text('Department', style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          SizedBox(width: 24),
                           SizedBox(width: 120, child: Text('Role', style: TextStyle(fontSize: 12, color: Colors.grey))),
                         ],
                       ),
@@ -372,7 +418,7 @@ class _AdminPageState extends State<AdminPage> {
                                 Expanded(child: Text(email, style: const TextStyle(fontSize: 13))),
                                 // department 드롭다운 - 기본값 없음(Unassigned), admin이 직접 배정
                                 SizedBox(
-                                  width: 140,
+                                  width: 200,
                                   child: DropdownButtonFormField<String?>(
                                     value: departmentId,
                                     isExpanded: true, // 긴 부서명이 넘칠 때 줄바꿈 대신 잘라서 표시
@@ -408,6 +454,7 @@ class _AdminPageState extends State<AdminPage> {
                                     },
                                   ),
                                 ),
+                                const SizedBox(width: 24),
                                 // role 드롭다운 — Expanded 대신 SizedBox로 assertion 에러 방지
                                 SizedBox(
                                   width: 120,
