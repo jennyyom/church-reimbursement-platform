@@ -31,12 +31,15 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid;
 
-      // 승인/거절: approver, admin만 / soft-delete(hiddenFromMember만 수정): 본인 pending·rejected 건
+      // 승인/거절: approver, admin만
+      // 본인 pending·rejected 건 수정: soft-delete(hiddenFromMember), 업로드 후 imageUrl 채우기,
+      // draft 확정(draft/amount/description) — 그 외 필드(status, approvedBy 등)는 못 건드림
       allow update: if request.auth != null
         && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['approver', 'admin']
             || (resource.data.uid == request.auth.uid
                 && resource.data.status in ['pending', 'rejected']
-                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hiddenFromMember'])));
+                && request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['hiddenFromMember', 'imageUrl', 'draft', 'amount', 'description'])));
 
       // 삭제(진짜 삭제): admin만, 그리고 approved는 삭제 불가(지급 완료 기록은 앱에서 영구 보존)
       // member는 위 soft-delete만 가능, 감사 기록은 admin 쪽에 남음
