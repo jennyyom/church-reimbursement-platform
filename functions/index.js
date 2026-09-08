@@ -30,20 +30,23 @@ exports.processReceipt = onObjectFinalized(async (event) => {
       : null;
 
     // 3. Firestore에서 해당 expense 찾아서 업데이트
-    const uid = filePath.split("/")[1]; // receipts/{uid}/{fileName}
     const snapshot = await db
       .collectionGroup("expenses")
-      .where("uid", "==", uid)
-      .orderBy("createdAt", "desc")
+      .where("storagePath", "==", filePath)
       .limit(1)
       .get();
 
     if (!snapshot.empty) {
-      await snapshot.docs[0].ref.update({
+      // amount를 못 찾았으면(null) 필드 자체를 건드리지 않는다.
+      // 그래야 사용자가 이미 입력해둔 금액을 OCR 실패로 덮어써서 지우는 일이 없다.
+      const updateData = {
         ocrText: text,
-        amount: amount,
         ocrProcessed: true,
-      });
+      };
+      if (amount !== null) {
+        updateData.amount = amount;
+      }
+      await snapshot.docs[0].ref.update(updateData);
     }
 
     console.log(`OCR 완료: ${filePath}, 금액: ${amount}`);
