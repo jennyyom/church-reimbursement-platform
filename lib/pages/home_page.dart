@@ -161,6 +161,7 @@ void _showLanguagePicker() {
               ? snapshot.data!.docs
                   .where((d) => (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] != true)
                   .map((d) => Expense.fromFirestore(d))
+                  .where((e) => !e.draft) // Submit 전 draft는 아직 "내 영수증"이 아님
                   .where((e) => _statusFilter == 'all' || e.status.name == _statusFilter)
                   .toList()
               : <Expense>[];
