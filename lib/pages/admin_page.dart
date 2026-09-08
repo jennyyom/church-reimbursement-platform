@@ -212,9 +212,10 @@ class _AdminPageState extends State<AdminPage> {
 
         // member가 지운(hiddenFromMember) 건은 상태 상관없이 Overview에서 제외.
         // rejected/approved 기록은 History 탭이 항상 그대로 보존하고 있어서 여기선 중복 유지 안 함
+        // draft(웹에서 Submit 전 임시 생성된 건)도 제외 - 아직 실제 제출이 아님
         final docs = snapshot.data!.docs.where((d) {
           final data = d.data() as Map<String, dynamic>? ?? {};
-          return data['hiddenFromMember'] != true;
+          return data['hiddenFromMember'] != true && data['draft'] != true;
         }).toList();
         final total = docs.length;
         final pending = docs.where((d) {
