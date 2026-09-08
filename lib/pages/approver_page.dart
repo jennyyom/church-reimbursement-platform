@@ -485,6 +485,7 @@ class _ApproverPageState extends State<ApproverPage>
         final expenses = snapshot.data!.docs
             .where((d) => (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] != true)
             .map((doc) => Expense.fromFirestore(doc))
+            .where((e) => !e.draft) // 웹에서 아직 Submit 안 한 draft는 승인 대상 아님
             .toList();
         if (expenses.isEmpty) {
           return Center(child: Text(l10n.reviewReceipts));
