@@ -1,3 +1,4 @@
+import 'approval_step.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum ExpenseStatus { pending, approved, rejected }
@@ -18,6 +19,8 @@ class Expense {
   final DateTime? approvedAt; // 승인/거절 날짜
   final String? rejectReason; // 거절 이유
   final bool draft; // true면 아직 확정 제출 전 - approver/admin/본인 목록에 안 보임
+  final List<ApprovalStep> approvalChain;
+  final int currentTier; 
 
   Expense({
     required this.id,
@@ -35,6 +38,8 @@ class Expense {
     this.draft = false,
     required this.status,
     required this.createdAt,
+    this.approvalChain = const [],   // ← 추가
+    this.currentTier = 1,            // ← 추가
   });
 
   factory Expense.fromFirestore(DocumentSnapshot doc) {
@@ -62,6 +67,11 @@ class Expense {
       createdAt: data['createdAt'] != null 
     ? (data['createdAt'] as Timestamp).toDate() 
     : DateTime.now(),
+      approvalChain: (data['approvalChain'] as List<dynamic>?)
+            ?.map((m) => ApprovalStep.fromMap(m as Map<String, dynamic>))
+            .toList() ??
+        [],                                          // ← 추가
+    currentTier: data['currentTier'] ?? 1,           // ← 추가
     );
   }
 
@@ -81,6 +91,8 @@ class Expense {
       'rejectReason': rejectReason,
       'draft': draft,
       'createdAt': FieldValue.serverTimestamp(),
+      'approvalChain': approvalChain.map((s) => s.toMap()).toList(),  // ← 추가
+      'currentTier': currentTier,                                     // ← 추가
     };
   }
 }
