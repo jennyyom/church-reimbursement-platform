@@ -11,7 +11,9 @@ import 'package:flutter/foundation.dart'; // kIsWeb 체크용
 import 'dart:ui' as ui; // 이미지 디코딩 가능 여부 검증용
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; // 앱 OCR
 
-
+// 금액을 넣으면 승인 단계 리스트(ApprovalStep 리스트)를 만들어주는 함수.
+// $500 이하 = Dept. Chair 1단계, $500 초과 = Dept. Chair + Admin. Pastor 2단계.
+import '../utils/approval_chain_builder.dart';
 
 import 'package:flutter_image_compress/flutter_image_compress.dart'; // 이미지 압축
 
@@ -136,6 +138,13 @@ class _UploadPageState extends State<UploadPage> {
       final storageRef = FirebaseStorage.instance.ref().child('receipts/$uid/$fileName');
 
       // draft: true로 생성 - approver/admin/본인 목록엔 아직 안 보임
+      //
+      // ⚠️ approvalChain을 여기서 만들지 않는 이유:
+      // 이 시점엔 아직 OCR이 끝나지 않아서 금액(_amountController.text)이 확정되지 않았음
+      // (사용자가 OCR 결과를 보고 직접 고칠 수도 있음). 만약 여기서 미리 체인을 만들면
+      // 아직 확정 안 된 금액 기준으로 "$500 이하니까 1단계" 같은 잘못된 결정을 내려버릴 수 있음.
+      // 그래서 체인은 사용자가 Submit 버튼을 눌러서 draft를 확정하는 순간(_uploadReceipt 안,
+      // 아래쪽 draft 확정 블록)에 최종 금액을 보고 그때 만듦.
       final expense = Expense(
         id: '',
         uid: uid,
@@ -225,10 +234,20 @@ class _UploadPageState extends State<UploadPage> {
       if (_draftExpenseRef != null) {
         // 웹: 사진 고를 때 이미 만들어둔 draft가 있으면, 확정만 하면 됨
         // (문서/Storage 업로드는 _uploadDraftAndWaitForOcr에서 이미 끝남)
+
+        // 여기가 바로 "금액이 진짜로 확정되는 순간"임 — 사용자가 OCR 결과를 그대로 두거나
+        // 직접 수정한 뒤 Submit을 누른 시점이라, 이제서야 approvalChain을 안전하게 만들 수 있음.
+        // buildApprovalChain(amount)가 이 금액을 보고 $500 이하/초과를 판단해서
+        // 승인 단계 리스트(1단계 or 2단계)를 만들어줌.
+        final amount = double.tryParse(_amountController.text.trim()) ?? 0;
         await _draftExpenseRef!.update({
           'draft': false,
-          'amount': double.tryParse(_amountController.text.trim()),
+          'amount': amount,
           'description': _descriptionController.text.trim(),
+          // ApprovalStep 객체 리스트는 그대로 Firestore에 못 넣으니까,
+          // 각 ApprovalStep을 .toMap()으로 Map(딕셔너리) 형태로 바꿔서 리스트로 저장함.
+          'approvalChain': buildApprovalChain(amount).map((s) => s.toMap()).toList(),
+          'currentTier': 1, // 새로 확정된 지출은 항상 1단계(부서장)부터 시작
         });
         _draftExpenseRef = null;
         _draftStoragePath = null;
@@ -254,17 +273,25 @@ class _UploadPageState extends State<UploadPage> {
         // ⚠️ Firestore 문서를 Storage 업로드보다 먼저 생성
         //    Cloud Function(onObjectFinalized)이 업로드 완료 즉시 트리거되므로,
         //    그 시점에 storagePath로 조회할 expense 문서가 이미 존재해야 함
+        //    (예전엔 업로드를 먼저 해서 Function이 문서를 못 찾고 조용히 실패했었음)
+
+        // 이 경로(네이티브 앱)는 ML Kit OCR이 이미지 고를 때 바로 끝나서 금액이
+        // 이 시점에 이미 확정돼 있음 (draft 대기 과정이 필요 없음). 그래서 바로
+        // approvalChain을 만들어서 Expense 생성할 때 같이 넣어줌.
+        final amount = double.tryParse(_amountController.text.trim()) ?? 0;
         final expense = Expense(
           id: '',
           uid: uid,
           churchId: appUser.churchId,
           imageUrl: '', // 업로드 완료 후 채움
           storagePath: storageRef.fullPath,
-          amount: double.tryParse(_amountController.text.trim()),
+          amount: amount,
           description: _descriptionController.text.trim(),
           userName: appUser.name,
           status: ExpenseStatus.pending,
           createdAt: DateTime.now(),
+          approvalChain: buildApprovalChain(amount), // 금액 보고 승인 단계 자동 생성
+          currentTier: 1,                             // 1단계(부서장)부터 시작
         );
 
         final expenseRef = await FirebaseFirestore.instance
@@ -283,9 +310,11 @@ class _UploadPageState extends State<UploadPage> {
             await Future.delayed(const Duration(seconds: 1));
             final doc = await expenseRef.get();
             if (doc.data()?['ocrProcessed'] == true) {
-              final amount = doc.data()?['amount'];
-              if (amount != null && mounted) {
-                setState(() => _amountController.text = amount.toStringAsFixed(2));
+              // 위에서 만든 'amount' 변수(local variable)랑 이름이 겹치면 안 되니까
+              // 'ocrAmount'라는 다른 이름으로 받음
+              final ocrAmount = doc.data()?['amount'];
+              if (ocrAmount != null && mounted) {
+                setState(() => _amountController.text = ocrAmount.toStringAsFixed(2));
               }
               break;
             }
@@ -306,7 +335,7 @@ class _UploadPageState extends State<UploadPage> {
     }
     setState(() => _isUploading = false);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
