@@ -47,7 +47,7 @@ service cloud.firestore {
       // 담당자를 공식적으로 재지정하는 절차를 거쳐야지, 뒷문으로 우회하면 안 됨.
       //
       // 본인 pending·rejected 건 수정: soft-delete(hiddenFromMember), 업로드 후 imageUrl 채우기,
-      // draft 확정(draft/amount/description/departmentId/approvalChain/currentTier) —
+      // draft 확정(draft/amount/description/departmentId/departmentName/approvalChain/currentTier) —
       // 그 외 필드(status, approvedBy 등)는 못 건드림
       allow update: if request.auth != null
         && ((get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['approver', 'admin']
@@ -55,7 +55,7 @@ service cloud.firestore {
             || (resource.data.uid == request.auth.uid
                 && resource.data.status in ['pending', 'rejected']
                 && request.resource.data.diff(resource.data).affectedKeys()
-                    .hasOnly(['hiddenFromMember', 'imageUrl', 'draft', 'amount', 'description', 'departmentId', 'approvalChain', 'currentTier'])));
+                    .hasOnly(['hiddenFromMember', 'imageUrl', 'draft', 'amount', 'description', 'departmentId', 'departmentName', 'approvalChain', 'currentTier'])));
 
       // 삭제(진짜 삭제): admin만, 그리고 approved는 삭제 불가(지급 완료 기록은 앱에서 영구 보존)
       // member는 위 soft-delete만 가능, 감사 기록은 admin 쪽에 남음

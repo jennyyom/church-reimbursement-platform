@@ -77,6 +77,24 @@ class _UploadPageState extends State<UploadPage> {
     });
   }
 
+  // 지금 고른 부서(_selectedDepartmentId)의 "코드 · 이름" 문자열을 만들어줌.
+  // 드롭다운 그릴 때 이미 _departments를 통째로 불러와뒀으니, 여기선 추가로
+  // Firestore를 조회하지 않고 메모리에 있는 목록에서 찾기만 함. Expense 문서에
+  // departmentName으로 그대로 복사해서 저장해두면, 나중에 홈 화면 "My Receipts"에서
+  // 부서 이름을 보여줄 때 departmentId로 다시 조회할 필요가 없어짐.
+  String? _selectedDepartmentName() {
+    final departments = _departments;
+    if (departments == null) return null;
+    for (final doc in departments) {
+      if (doc.id != _selectedDepartmentId) continue;
+      final data = doc.data() as Map<String, dynamic>;
+      final code = data['code'] as String? ?? '-';
+      final name = data['name'] as String? ?? '-';
+      return '$code · $name';
+    }
+    return null; // 선택된 부서가 목록에 없음(이론상 안 일어나야 하지만 방어적으로)
+  }
+
   @override
   void dispose() {
     _deleteDraftIfAny(); // 확정 안 하고 화면 나가면 최선을 다해 정리 (await는 못 함)
@@ -350,6 +368,9 @@ class _UploadPageState extends State<UploadPage> {
           // 화면에서 고른 부서 - 다음 단계(승인자 uid 채워넣기)에서
           // departments/{departmentId}.chairUid를 찾는 데 씀
           'departmentId': _selectedDepartmentId,
+          // 부서 "이름"까지 같이 저장 - 홈 화면(My Receipts)에서 부서를 보여줄 때
+          // departmentId로 다시 조회 안 해도 되게 (_selectedDepartmentName 주석 참고)
+          'departmentName': _selectedDepartmentName(),
           // ApprovalStep 객체 리스트는 그대로 Firestore에 못 넣으니까,
           // 각 ApprovalStep을 .toMap()으로 Map(딕셔너리) 형태로 바꿔서 리스트로 저장함.
           'approvalChain': resolvedChain.map((s) => s.toMap()).toList(),
@@ -403,6 +424,8 @@ class _UploadPageState extends State<UploadPage> {
           // 화면에서 고른 부서 - departments/{departmentId}.chairUid를 approvalChain에
           // 채워 넣는 데 이미 위(_resolveApprovalChain)에서 씀
           departmentId: _selectedDepartmentId,
+          // 부서 "이름"까지 같이 저장 - 홈 화면(My Receipts)에서 보여줄 때 씀
+          departmentName: _selectedDepartmentName(),
           userName: appUser.name,
           status: ExpenseStatus.pending,
           createdAt: DateTime.now(),

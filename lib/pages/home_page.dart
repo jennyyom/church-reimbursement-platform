@@ -306,13 +306,13 @@ void _showLanguagePicker() {
                         return Column(
                           children: [
                             Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // 설명 + 날짜
-                                Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                // 설명 + 날짜 - 원래 위아래로 두 줄이었는데, 부서 배지처럼
+                                // 한 줄에 나란히 놓으면 더 컴팩트해 보여서 옆으로 붙임
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
                                   children: [
                                     Text(
                                       e.description ?? 'Receipt',
@@ -320,7 +320,7 @@ void _showLanguagePicker() {
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500),
                                     ),
-                                    const SizedBox(height: 2),
+                                    const SizedBox(width: 6),
                                     Text(
                                       '${e.createdAt.year}/${e.createdAt.month}/${e.createdAt.day}',
                                       style: TextStyle(
@@ -329,7 +329,36 @@ void _showLanguagePicker() {
                                     ),
                                   ],
                                 ),
-                                // 금액 + 상태 배지
+                                // 제출한 부서 - 승인 라우팅이 부서 기준으로 도는데, 정작
+                                // 제출한 본인은 어느 부서로 보냈는지 확인할 데가 없어서 추가함.
+                                // 왼쪽(설명/날짜)과 오른쪽(금액/상태) 사이에 항상 비어있던
+                                // 공간을 Expanded+Center로 채워서 배지 형태로 보여줌 -
+                                // 왼쪽 Column에 세 번째 줄로 쌓으면 글씨가 계속 작아지고
+                                // 줄만 늘어나서, 대신 원래 비어있던 가운데 공간을 활용함.
+                                // departmentName이 없으면(옛날 지출 등) 빈 공간 그대로 둠.
+                                Expanded(
+                                  child: e.departmentName == null
+                                      ? const SizedBox.shrink()
+                                      : Center(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: Colors.indigo.shade50,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              e.departmentName!,
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.indigo.shade400,
+                                                  fontWeight: FontWeight.w500),
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                                // 금액 + 상태 배지 (자기 너비만 차지 - 오른쪽 정렬)
                                 Row(
                                   children: [
                                     if (e.amount != null)
