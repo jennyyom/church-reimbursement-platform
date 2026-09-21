@@ -36,6 +36,46 @@ class _UploadPageState extends State<UploadPage> {
   String? _draftStoragePath;
   bool _isProcessingOcr = false; // 웹에서 업로드+OCR 대기 중 표시용
 
+  // 부서(department) 드롭다운용 상태.
+  //
+  // 승인 체인(approvalChain)의 tier 1(department_head)을 실제로 "누구"에게
+  // 보낼지는 departments/{departmentId}.chairUid를 봐야 알 수 있음. 즉 이 지출이
+  // 어느 부서 소속인지를 유저가 먼저 골라줘야, 나중 단계에서 부서장 uid를
+  // approvalChain에 채워 넣을 수 있음. 그래서 이 화면에서 부서 선택을 필수로 받음.
+  String? _selectedDepartmentId; // 유저가 고른 부서 - null이면 아직 선택 안 한 것 (Submit 버튼 비활성화 조건)
+  List<QueryDocumentSnapshot>? _departments; // 부서 목록 - null이면 아직 로딩 중
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDepartments(); // 부서 드롭다운은 build()에서 바로 그려야 해서, 다른 메서드처럼 Submit 시점까지 미루지 않고 화면 진입하자마자 불러옴
+  }
+
+  // 로그인한 유저가 속한 교회의 부서 목록을 미리 한 번만 불러옴 (부서 드롭다운 렌더링용).
+  //
+  // 처음엔 부서 목록을 StreamBuilder로 실시간 구독해서 드롭다운을 그렸었는데, Firestore
+  // 스트림이 초기 로딩 시 캐시→서버 순으로 거의 동시에 두 번 이벤트를 쏘는 바람에,
+  // 유저가 드롭다운을 여는 순간 부모(StreamBuilder)가 다시 빌드되면서 열려있던 드롭다운
+  // 메뉴(오버레이)가 자기가 붙어있던 위젯이 사라진 걸로 착각하고 즉시 닫혀버리는 문제가 있었음.
+  // 부서 목록은 이 화면에 떠 있는 짧은 시간 동안 실시간으로 바뀔 필요가 없으니, 스트림 대신
+  // 한 번만 조회(.get())해서 상태에 저장해두고 그 값으로만 드롭다운을 그리도록 바꿈.
+  Future<void> _loadDepartments() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final churchId = userDoc.data()?['churchId'] as String?;
+
+    final deptSnapshot = await FirebaseFirestore.instance
+        .collection('churches')
+        .doc(churchId)
+        .collection('departments')
+        .get();
+
+    if (!mounted) return; // 데이터 받아오는 사이에 화면을 나갔으면 setState 하면 안 됨
+    setState(() {
+      _departments = deptSnapshot.docs;
+    });
+  }
+
   @override
   void dispose() {
     _deleteDraftIfAny(); // 확정 안 하고 화면 나가면 최선을 다해 정리 (await는 못 함)
@@ -228,6 +268,14 @@ class _UploadPageState extends State<UploadPage> {
     // Firebase Storage 업로드 + Firestore 저장
   Future<void> _uploadReceipt() async {
     if (_imageBytes == null) return;
+    // 버튼이 이미 _selectedDepartmentId != null일 때만 눌리게 돼 있어서 평소엔 여기 안 걸리지만,
+    // 방어적으로 한 번 더 확인 (예: 코드가 나중에 바뀌어 버튼 조건이 느슨해지는 실수를 대비)
+    if (_selectedDepartmentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a department before submitting.')),
+      );
+      return;
+    }
     setState(() => _isUploading = true);
 
     try {
@@ -244,6 +292,9 @@ class _UploadPageState extends State<UploadPage> {
           'draft': false,
           'amount': amount,
           'description': _descriptionController.text.trim(),
+          // 화면에서 고른 부서 - 다음 단계(승인자 uid 채워넣기)에서
+          // departments/{departmentId}.chairUid를 찾는 데 씀
+          'departmentId': _selectedDepartmentId,
           // ApprovalStep 객체 리스트는 그대로 Firestore에 못 넣으니까,
           // 각 ApprovalStep을 .toMap()으로 Map(딕셔너리) 형태로 바꿔서 리스트로 저장함.
           'approvalChain': buildApprovalChain(amount).map((s) => s.toMap()).toList(),
@@ -287,6 +338,9 @@ class _UploadPageState extends State<UploadPage> {
           storagePath: storageRef.fullPath,
           amount: amount,
           description: _descriptionController.text.trim(),
+          // 화면에서 고른 부서 - 다음 단계(승인자 uid 채워넣기)에서
+          // departments/{departmentId}.chairUid를 찾는 데 씀
+          departmentId: _selectedDepartmentId,
           userName: appUser.name,
           status: ExpenseStatus.pending,
           createdAt: DateTime.now(),
@@ -403,13 +457,57 @@ class _UploadPageState extends State<UploadPage> {
                   border: const OutlineInputBorder(),
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // 부서 선택 — 이 지출이 어느 부서 소속인지 골라야 함.
+              // 나중에 이 값(departmentId)으로 departments/{departmentId}.chairUid를 찾아서
+              // approvalChain의 tier 1(department_head) 승인자를 정하게 됨.
+              //
+              // _departments가 아직 null이면(_loadChurchIdAndDepartments 진행 중) 로딩 스피너만 보여줌.
+              // 부서 목록을 한 번만 불러와 상태에 저장해두고 그 값으로 그리기 때문에(위 _loadChurchIdAndDepartments
+              // 주석 참고), 드롭다운을 여는 동안 부모가 다시 빌드돼서 메뉴가 저절로 닫히는 일이 없음.
+              _departments == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : Builder(builder: (context) {
+                      final departments = _departments!;
+
+                      // 고른 부서가 목록에 없으면(관리자가 그 사이 부서를 삭제한 경우 등)
+                      // Dropdown의 value가 items 목록에 없는 상태가 되어 Flutter가 assertion
+                      // 에러를 던짐 - 그래서 실제 목록에 있는 id인지 확인해서 없으면
+                      // 화면엔 "선택 안 함" 상태로 보여줌
+                      final validIds = departments.map((d) => d.id).toSet();
+                      final dropdownValue = validIds.contains(_selectedDepartmentId) ? _selectedDepartmentId : null;
+
+                      return DropdownButtonFormField<String>(
+                        value: dropdownValue,
+                        decoration: const InputDecoration(
+                          labelText: 'Department *',
+                          border: OutlineInputBorder(),
+                          helperText: 'Required — determines who approves this expense',
+                        ),
+                        items: departments.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final code = data['code'] as String? ?? '-';
+                          final name = data['name'] as String? ?? '-';
+                          return DropdownMenuItem(
+                            value: doc.id,
+                            child: Text('$code · $name'),
+                          );
+                        }).toList(),
+                        onChanged: (value) => setState(() => _selectedDepartmentId = value),
+                      );
+                    }),
               const SizedBox(height: 24),
 
-              // 업로드 버튼 — 이미지 선택 전이거나 OCR 처리 중엔 비활성화
+              // 업로드 버튼 — 이미지 선택 전이거나 OCR 처리 중이거나 부서 미선택이면 비활성화.
+              // 부서를 필수로 막는 이유: departmentId 없이 제출되면 나중에 tier 1(부서장)
+              // 승인자를 찾을 방법이 없어서, 승인 체인이 아무한테도 안 가는 지출이 생겨버림.
               _isUploading
                   ? const CircularProgressIndicator()
                   : ElevatedButton.icon(
-                      onPressed: _imageBytes != null && !_isProcessingOcr ? _uploadReceipt : null,
+                      onPressed: _imageBytes != null && !_isProcessingOcr && _selectedDepartmentId != null
+                          ? _uploadReceipt
+                          : null,
                       icon: const Icon(Icons.upload),
                       label: Text(l10n.submitReceipt),
                     ),
