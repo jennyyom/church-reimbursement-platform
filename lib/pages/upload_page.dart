@@ -7,6 +7,7 @@ import 'package:church_reimbursement/l10n/app_localizations.dart';
 
 import '../models/expense.dart';
 import '../models/app_user.dart';
+import '../models/approval_step.dart'; // _resolveApprovalChain에서 ApprovalStep 타입을 직접 다루기 위해 필요
 import 'package:flutter/foundation.dart'; // kIsWeb 체크용
 import 'dart:ui' as ui; // 이미지 디코딩 가능 여부 검증용
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; // 앱 OCR
@@ -265,6 +266,45 @@ class _UploadPageState extends State<UploadPage> {
     );
   }
 
+  // buildApprovalChain(amount)이 만든 체인은 tier/role만 정해져 있고 approverUid는
+  // 항상 null인 상태 (그 함수는 금액만 보고 "몇 단계인지"만 정하지, "누구인지"는 모름).
+  // 이 함수가 그 자리에 실제 사람의 uid를 채워 넣는 역할:
+  //   - department_head(tier 1) → 이 지출이 속한 부서(departments/{departmentId})의 chairUid
+  //   - admin_pastor(tier 2)    → 이 교회(churches/{churchId})에 지정된 adminPastorUid
+  //     (Admin 페이지 Departments 탭 상단에서 admin이 지정한 값)
+  //
+  // 부서장/Admin Pastor가 아직 지정 안 돼 있으면(chairUid나 adminPastorUid가 비어있으면)
+  // approverUid는 null로 남음 - 이 경우 그 단계는 "담당자 미배정" 상태가 되고, 나중에
+  // ApproverPage 필터링(다음 단계에서 만들 예정)에서 아무한테도 안 보이게 됨. 지출 자체는
+  // 정상 제출되니, admin이 나중에 담당자를 지정하면 그때부터 보이기 시작하는 게 의도된 동작.
+  Future<List<ApprovalStep>> _resolveApprovalChain(
+    List<ApprovalStep> chain,
+    String churchId,
+    String departmentId,
+  ) async {
+    final deptDoc = await FirebaseFirestore.instance
+        .collection('churches')
+        .doc(churchId)
+        .collection('departments')
+        .doc(departmentId)
+        .get();
+    final chairUid = deptDoc.data()?['chairUid'] as String?;
+
+    final churchDoc = await FirebaseFirestore.instance.collection('churches').doc(churchId).get();
+    final adminPastorUid = churchDoc.data()?['adminPastorUid'] as String?;
+
+    return chain.map((step) {
+      // chairUid는 부서 문서에 ''(빈 문자열)로 저장되는 경우가 있어서(미배정 부서장) -
+      // 빈 문자열을 그대로 approverUid에 넣으면 "누군가한테 배정된 것처럼" 보이니 null로 취급
+      final resolvedUid = switch (step.role) {
+        'department_head' => (chairUid != null && chairUid.isNotEmpty) ? chairUid : null,
+        'admin_pastor' => adminPastorUid,
+        _ => null,
+      };
+      return ApprovalStep(tier: step.tier, role: step.role, approverUid: resolvedUid);
+    }).toList();
+  }
+
     // Firebase Storage 업로드 + Firestore 저장
   Future<void> _uploadReceipt() async {
     if (_imageBytes == null) return;
@@ -288,6 +328,21 @@ class _UploadPageState extends State<UploadPage> {
         // buildApprovalChain(amount)가 이 금액을 보고 $500 이하/초과를 판단해서
         // 승인 단계 리스트(1단계 or 2단계)를 만들어줌.
         final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+
+        // draft 생성 경로(_uploadDraftAndWaitForOcr)는 churchId를 따로 상태에 안 남겨뒀어서,
+        // approverUid를 채우려면(churches/{churchId} 조회가 필요) 여기서 한 번 더 불러옴
+        final uidForChurch = FirebaseAuth.instance.currentUser!.uid;
+        final userDocForChurch = await FirebaseFirestore.instance.collection('users').doc(uidForChurch).get();
+        final churchId = userDocForChurch.data()?['churchId'] as String;
+
+        // buildApprovalChain은 role/tier만 정하고, _resolveApprovalChain이 그 자리에
+        // 실제 부서장·Admin Pastor의 uid를 채워 넣음 (자세한 설명은 _resolveApprovalChain 주석 참고)
+        final resolvedChain = await _resolveApprovalChain(
+          buildApprovalChain(amount),
+          churchId,
+          _selectedDepartmentId!,
+        );
+
         await _draftExpenseRef!.update({
           'draft': false,
           'amount': amount,
@@ -297,7 +352,7 @@ class _UploadPageState extends State<UploadPage> {
           'departmentId': _selectedDepartmentId,
           // ApprovalStep 객체 리스트는 그대로 Firestore에 못 넣으니까,
           // 각 ApprovalStep을 .toMap()으로 Map(딕셔너리) 형태로 바꿔서 리스트로 저장함.
-          'approvalChain': buildApprovalChain(amount).map((s) => s.toMap()).toList(),
+          'approvalChain': resolvedChain.map((s) => s.toMap()).toList(),
           'currentTier': 1, // 새로 확정된 지출은 항상 1단계(부서장)부터 시작
         });
         _draftExpenseRef = null;
@@ -329,7 +384,14 @@ class _UploadPageState extends State<UploadPage> {
         // 이 경로(네이티브 앱)는 ML Kit OCR이 이미지 고를 때 바로 끝나서 금액이
         // 이 시점에 이미 확정돼 있음 (draft 대기 과정이 필요 없음). 그래서 바로
         // approvalChain을 만들어서 Expense 생성할 때 같이 넣어줌.
+        // (buildApprovalChain은 role/tier만 정하고, _resolveApprovalChain이 그 자리에
+        // 실제 부서장·Admin Pastor의 uid를 채워 넣음 — 위 draft 경로와 동일한 이유)
         final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+        final resolvedChain = await _resolveApprovalChain(
+          buildApprovalChain(amount),
+          appUser.churchId,
+          _selectedDepartmentId!,
+        );
         final expense = Expense(
           id: '',
           uid: uid,
@@ -338,14 +400,14 @@ class _UploadPageState extends State<UploadPage> {
           storagePath: storageRef.fullPath,
           amount: amount,
           description: _descriptionController.text.trim(),
-          // 화면에서 고른 부서 - 다음 단계(승인자 uid 채워넣기)에서
-          // departments/{departmentId}.chairUid를 찾는 데 씀
+          // 화면에서 고른 부서 - departments/{departmentId}.chairUid를 approvalChain에
+          // 채워 넣는 데 이미 위(_resolveApprovalChain)에서 씀
           departmentId: _selectedDepartmentId,
           userName: appUser.name,
           status: ExpenseStatus.pending,
           createdAt: DateTime.now(),
-          approvalChain: buildApprovalChain(amount), // 금액 보고 승인 단계 자동 생성
-          currentTier: 1,                             // 1단계(부서장)부터 시작
+          approvalChain: resolvedChain, // 실제 승인자 uid까지 채워진 체인
+          currentTier: 1,                // 1단계(부서장)부터 시작
         );
 
         final expenseRef = await FirebaseFirestore.instance
