@@ -16,6 +16,14 @@ class _AdminPageState extends State<AdminPage> {
   String _selectedMenu = 'overview';
   String? _churchId;
 
+  // Admin Pastor 지정 UI(Departments 탭 상단)용 상태.
+  //
+  // Admin Pastor는 $500 초과 지출의 2단계(tier 2) 승인자 - 부서장(tier 1)과 달리
+  // 부서마다 따로 있는 게 아니라 교회 전체에 한 명만 지정됨. 나중에(다음 단계) 지출
+  // 제출 시점에 이 값(churches/{churchId}.adminPastorUid)을 approvalChain에 복사해 넣게 됨.
+  String? _adminPastorUid;                       // 현재 지정된 사람의 uid - null이면 미지정
+  List<QueryDocumentSnapshot>? _churchUsers;     // 드롭다운 후보 목록(이 교회 유저 전체) - null이면 아직 로딩 중
+
   // Overview/History 각각 독립적인 기간 필터 (데이터 많아져도 한 번에 다 안 불러오게)
   String _overviewPeriod = 'month';
   String _historyPeriod = 'month';
@@ -75,7 +83,30 @@ class _AdminPageState extends State<AdminPage> {
         .collection('users')
         .doc(uid)
         .get();
-    setState(() => _churchId = doc['churchId']);
+    final churchId = doc['churchId'] as String;
+    setState(() => _churchId = churchId);
+    _loadAdminPastorAndUsers(churchId); // churchId를 알아야 조회할 수 있어서 여기서 이어서 호출
+  }
+
+  // Admin Pastor 드롭다운을 그리는 데 필요한 두 가지를 한 번만 불러와서 상태에 저장함:
+  // 1) 이 교회의 현재 adminPastorUid (churches/{churchId} 문서)
+  // 2) 드롭다운 후보로 보여줄 이 교회 유저 전체 목록
+  //
+  // upload_page.dart의 부서 드롭다운에서, 실시간 스트림(StreamBuilder)으로 목록을 구독했더니
+  // 드롭다운을 여는 순간 부모가 재빌드되면서 메뉴가 저절로 닫혀버리는 문제를 겪었었음.
+  // 이 목록도 화면에 떠 있는 동안 실시간으로 바뀔 필요는 없으니, 같은 이유로 스트림 대신
+  // 한 번만 조회(.get())해서 상태에 저장해두고 그 값으로만 드롭다운을 그리도록 함.
+  Future<void> _loadAdminPastorAndUsers(String churchId) async {
+    final churchDoc = await FirebaseFirestore.instance.collection('churches').doc(churchId).get();
+    final usersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('churchId', isEqualTo: churchId)
+        .get();
+    if (!mounted) return; // 조회하는 사이에 화면을 나갔으면 setState 하면 안 됨
+    setState(() {
+      _adminPastorUid = churchDoc.data()?['adminPastorUid'] as String?;
+      _churchUsers = usersSnapshot.docs;
+    });
   }
 
   // 로그아웃
@@ -866,6 +897,80 @@ class _AdminPageState extends State<AdminPage> {
                 ],
               ),
               const SizedBox(height: 20),
+
+              // Admin Pastor 지정 카드 - 부서장(Dept Chair)은 부서마다 따로 있지만,
+              // Admin Pastor는 $500 초과 지출의 2단계 승인자로 교회 전체에 한 명만 지정됨.
+              // 그래서 부서 목록과는 별개로, 이 화면 상단에 한 번만 두는 카드로 만듦.
+              Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Admin Pastor', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Tier 2 approver for expenses over \$500. One person for the whole church, regardless of department.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    // _churchUsers가 아직 null이면(_loadAdminPastorAndUsers 진행 중) 로딩 스피너만 보여줌
+                    _churchUsers == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : Builder(builder: (context) {
+                            final users = _churchUsers!;
+                            final userNameById = {
+                              for (final u in users) u.id: (u.data() as Map<String, dynamic>?)?['name'] as String? ?? '?',
+                            };
+                            // 지정된 사람이 더 이상 이 교회 유저 목록에 없으면(탈퇴 등)
+                            // Dropdown의 value가 items에 없는 상태가 되어 assertion 에러가 나므로,
+                            // 실제 목록에 있는 uid인지 확인해서 없으면 "Unassigned"로 보여줌
+                            final dropdownValue = userNameById.containsKey(_adminPastorUid) ? _adminPastorUid : null;
+
+                            return SizedBox(
+                              width: 320,
+                              child: DropdownButtonFormField<String?>(
+                                value: dropdownValue,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                                items: [
+                                  const DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text('Unassigned', style: TextStyle(color: Colors.grey)),
+                                  ),
+                                  ...users.map((userDoc) {
+                                    final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+                                    final userName = userData['name'] as String? ?? '?';
+                                    final userRole = userData['role'] as String? ?? 'member';
+                                    return DropdownMenuItem<String?>(
+                                      value: userDoc.id,
+                                      child: Text('$userName ($userRole)', overflow: TextOverflow.ellipsis),
+                                    );
+                                  }),
+                                ],
+                                // 부서 배정 드롭다운(유저 목록 탭)과 같은 방식 - 별도 저장 버튼 없이
+                                // 고르는 즉시 churches/{churchId} 문서에 바로 씀
+                                onChanged: (newUid) async {
+                                  await FirebaseFirestore.instance
+                                      .collection('churches')
+                                      .doc(_churchId)
+                                      .update({'adminPastorUid': newUid});
+                                  setState(() => _adminPastorUid = newUid);
+                                },
+                              ),
+                            );
+                          }),
+                  ],
+                ),
+              ),
 
               // 부서 목록을 담을 흰색 카드
               Container(
