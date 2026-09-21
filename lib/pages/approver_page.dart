@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:church_reimbursement/l10n/app_localizations.dart';
 import '../models/expense.dart';
+import '../models/approval_step.dart'; // _approve/_reject에서 ApprovalStep을 직접 다루기 위해 필요
 import '../main.dart';
 import 'login_page.dart';
 
@@ -81,7 +82,15 @@ class _ApproverPageState extends State<ApproverPage>
   }
 
   // 영수증 승인
-  Future<void> _approve(String expenseId) async {
+  //
+  // 예전엔 승인 버튼 한 번 누르면 무조건 전체 status가 바로 approved가 됐는데,
+  // 이제 approvalChain이 여러 단계(tier)일 수 있어서 그렇게 하면 안 됨.
+  // 지금 이 사람이 처리하는 건 "이 지출의 여러 승인 단계 중 하나"일 뿐이라,
+  // 마지막 단계인지 아닌지에 따라 동작이 갈림:
+  //   - 마지막 단계(예: tier 2까지 있는데 지금이 tier 2) → 전체 status를 approved로 확정
+  //   - 마지막 단계가 아님(예: tier 2까지 있는데 지금이 tier 1) → currentTier만 다음으로
+  //     올려서 다음 담당자(admin_pastor)에게 넘김. 전체 status는 여전히 pending으로 남음
+  Future<void> _approve(Expense expense) async {
     // 확인 다이얼로그
     final confirmed = await showDialog<bool>(
       context: context,
@@ -115,22 +124,59 @@ class _ApproverPageState extends State<ApproverPage>
         .get();
     final approverName = userDoc['name'];
 
+    // currentTier는 1부터 시작하는 "몇 번째 단계인지" 숫자라서, approvalChain 리스트의
+    // 인덱스로 쓰려면 -1 해줘야 함 (tier 1 → 인덱스 0, tier 2 → 인덱스 1)
+    final tierIndex = expense.currentTier - 1;
+    // 지금 처리 중인 단계가 approvalChain의 마지막 원소면, 더 넘길 단계가 없다는 뜻
+    final isFinalTier = tierIndex >= expense.approvalChain.length - 1;
+
+    // approvalChain 중에서 "지금 처리 중인 단계"만 승인 상태로 바꾸고, 나머지 단계는
+    // 그대로 둠(아직 순서가 안 온 단계, 또는 예전에 이미 처리된 단계는 손대면 안 됨)
+    final updatedChain = [
+      for (var i = 0; i < expense.approvalChain.length; i++)
+        if (i == tierIndex)
+          ApprovalStep(
+            tier: expense.approvalChain[i].tier,
+            role: expense.approvalChain[i].role,
+            approverUid: expense.approvalChain[i].approverUid,
+            status: ApprovalStepStatus.approved,
+            actedBy: approverName,
+            actedAt: DateTime.now(),
+          )
+        else
+          expense.approvalChain[i],
+    ];
+
     // Firestore 상태 업데이트
     await FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
         .collection('expenses')
-        .doc(expenseId)
+        .doc(expense.id)
         .update({
-          'status': 'approved',
-          'approvedBy': approverName,
-          'approvedByUid': uid, // 히스토리 필터용
-          'approvedAt': FieldValue.serverTimestamp(),
+          'approvalChain': updatedChain.map((s) => s.toMap()).toList(),
+          if (isFinalTier)
+            ...{
+              // 마지막 단계까지 승인됐을 때만 전체 status를 최종 approved로 확정
+              'status': 'approved',
+              'approvedBy': approverName,
+              'approvedByUid': uid, // 히스토리 필터용
+              'approvedAt': FieldValue.serverTimestamp(),
+            }
+          else
+            ...{
+              // 아직 남은 단계가 있으면 다음 담당자한테 넘김 - 전체 status는 pending 그대로 유지
+              'currentTier': expense.currentTier + 1,
+            },
         });
   }
 
   // 영수증 반려 (사유 입력)
-  Future<void> _reject(String expenseId) async {
+  //
+  // 승인(_approve)과 다르게, 거절은 지금 몇 번째 단계든 상관없이 그 즉시 전체 지출을
+  // 반려로 끝냄 (다음 담당자한테 안 넘어감) - 승인 체인 중간에 누구 하나라도 거절하면
+  // 그걸로 전체 지출이 반려되는 게 맞는 흐름이라고 판단함.
+  Future<void> _reject(Expense expense) async {
     final reasonController = TextEditingController();
 
     // 반려 사유 입력 다이얼로그
@@ -172,19 +218,42 @@ class _ApproverPageState extends State<ApproverPage>
         .doc(uid)
         .get();
     final approverName = userDoc['name'];
+    final reason = reasonController.text.trim();
 
-    // Firestore 상태 업데이트
+    // currentTier(1부터 시작)를 approvalChain 배열 인덱스로 변환 (tier 1 → 인덱스 0)
+    final tierIndex = expense.currentTier - 1;
+
+    // approvalChain 중 "지금 처리 중인 단계"만 rejected로 표시해서 누가·왜 거절했는지
+    // 기록에 남김 - 다른 단계는 그대로 둠
+    final updatedChain = [
+      for (var i = 0; i < expense.approvalChain.length; i++)
+        if (i == tierIndex)
+          ApprovalStep(
+            tier: expense.approvalChain[i].tier,
+            role: expense.approvalChain[i].role,
+            approverUid: expense.approvalChain[i].approverUid,
+            status: ApprovalStepStatus.rejected,
+            actedBy: approverName,
+            actedAt: DateTime.now(),
+            note: reason,
+          )
+        else
+          expense.approvalChain[i],
+    ];
+
+    // Firestore 상태 업데이트 - 단계와 상관없이 전체 status를 바로 rejected로 확정
     await FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
         .collection('expenses')
-        .doc(expenseId)
+        .doc(expense.id)
         .update({
           'status': 'rejected',
-          'rejectReason': reasonController.text.trim(),
+          'rejectReason': reason,
           'approvedBy': approverName,
           'approvedByUid': uid, // 히스토리 필터용
           'approvedAt': FieldValue.serverTimestamp(),
+          'approvalChain': updatedChain.map((s) => s.toMap()).toList(),
         });
   }
 
@@ -252,7 +321,7 @@ class _ApproverPageState extends State<ApproverPage>
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           TextButton.icon(
-                            onPressed: () => _approve(expense.id),
+                            onPressed: () => _approve(expense),
                             icon: const Icon(Icons.check,
                                 size: 14, color: Color(0xFF27500A)),
                             label: Text(l10n.approve,
@@ -268,7 +337,7 @@ class _ApproverPageState extends State<ApproverPage>
                           ),
                           const SizedBox(height: 6),
                           TextButton.icon(
-                            onPressed: () => _reject(expense.id),
+                            onPressed: () => _reject(expense),
                             icon: const Icon(Icons.close,
                                 size: 14, color: Color(0xFF501313)),
                             label: Text(l10n.reject,
@@ -486,6 +555,18 @@ class _ApproverPageState extends State<ApproverPage>
             .where((d) => (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] != true)
             .map((doc) => Expense.fromFirestore(doc))
             .where((e) => !e.draft) // 웹에서 아직 Submit 안 한 draft는 승인 대상 아님
+            // 예전엔 이 교회 approver/admin이면 pending 전체가 다 보였는데, 이제 지출마다
+            // "지금 몇 단계(tier)인지"와 "그 단계 담당자가 누구인지"가 정해져 있으므로
+            // 로그인한 나(_approverUid)가 지금 단계의 담당자일 때만 보이게 필터링함.
+            .where((e) {
+              // currentTier(1부터 시작)를 approvalChain 배열 인덱스로 변환
+              final tierIndex = e.currentTier - 1;
+              // 인덱스가 범위를 벗어나면(데이터 이상) 안전하게 숨김
+              if (tierIndex < 0 || tierIndex >= e.approvalChain.length) return false;
+              // 담당자가 아직 미배정(부서장/Admin Pastor를 admin이 안 정해서 approverUid가
+              // null)이면 아무한테도 안 보임 - admin이 나중에 담당자를 지정하면 그때부터 보임
+              return e.approvalChain[tierIndex].approverUid == _approverUid;
+            })
             .toList();
         if (expenses.isEmpty) {
           return Center(child: Text(l10n.reviewReceipts));
