@@ -51,6 +51,11 @@ class AppLocalizationsSw extends AppLocalizations {
   String get approverDashboard => 'Dashibodi ya Mkaguzi';
 
   @override
+  String approverDashboardWithName(String name) {
+    return 'Dashibodi ya Mkaguzi';
+  }
+
+  @override
   String get adminDashboard => 'Dashibodi ya Msimamizi';
 
   @override

@@ -15,6 +15,15 @@
 
   "appTitle": "Church Reimbursement",
   "approverDashboard": "Approver Dashboard",
+  "approverDashboardWithName": "{name}'s Approver Dashboard",
+  "@approverDashboardWithName": {
+    "description": "Approver dashboard title with the logged-in approver's name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "adminDashboard": "Admin Dashboard",
   "reviewReceipts": "Please review receipts pending approval.",
   "manageReimbursements": "Manage and oversee all reimbursements.",

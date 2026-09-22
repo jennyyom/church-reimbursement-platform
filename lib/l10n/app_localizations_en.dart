@@ -51,6 +51,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get approverDashboard => 'Approver Dashboard';
 
   @override
+  String approverDashboardWithName(String name) {
+    return '$name\'s Approver Dashboard';
+  }
+
+  @override
   String get adminDashboard => 'Admin Dashboard';
 
   @override

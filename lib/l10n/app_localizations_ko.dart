@@ -51,6 +51,11 @@ class AppLocalizationsKo extends AppLocalizations {
   String get approverDashboard => '승인자 대시보드';
 
   @override
+  String approverDashboardWithName(String name) {
+    return '$name님의 승인자 대시보드';
+  }
+
+  @override
   String get adminDashboard => '관리자 대시보드';
 
   @override

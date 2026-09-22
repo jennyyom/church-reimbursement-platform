@@ -184,6 +184,12 @@ abstract class AppLocalizations {
   /// **'Approver Dashboard'**
   String get approverDashboard;
 
+  /// Approver dashboard title with the logged-in approver's name
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s Approver Dashboard'**
+  String approverDashboardWithName(String name);
+
   /// No description provided for @adminDashboard.
   ///
   /// In en, this message translates to:

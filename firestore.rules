@@ -64,6 +64,29 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // 교회 approvalActions - approver가 승인/거절할 때마다 "내가 이 지출을 처리했다"고
+    // 남기는 개별 기록(History 탭이 이걸 기준으로 조회함). 한 번 남긴 기록을 나중에
+    // 고치거나 지울 수 있으면 "누가 언제 뭘 처리했는지"에 대한 신뢰가 깨지므로
+    // update/delete는 아예 막아둠 - 감사 로그는 추가만 되고 수정은 안 되는 게 맞음.
+    match /churches/{churchId}/approvalActions/{actionId} {
+
+      // 읽기: 본인이 남긴 기록이거나 admin만 (다른 approver의 처리 이력을
+      // 마음대로 못 보게)
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId
+        && (resource.data.approverUid == request.auth.uid
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+
+      // 생성: 같은 교회의 approver/admin만, 그리고 반드시 자기 자신 명의로만
+      // (다른 사람 uid를 대신 써서 기록을 조작 못 하게)
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == churchId
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['approver', 'admin']
+        && request.resource.data.approverUid == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
     // 교회 departments - 읽기는 같은 교회 멤버 전체, 쓰기(추가/삭제)는 admin만
     match /churches/{churchId}/departments/{deptId} {
 

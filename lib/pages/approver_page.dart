@@ -18,6 +18,7 @@ class _ApproverPageState extends State<ApproverPage>
     with SingleTickerProviderStateMixin {
   String? _churchId;
   String? _approverUid;
+  String? _approverName; // AppBar 제목에 표시할 로그인한 approver 이름
   late TabController _tabController; // 탭 컨트롤러
 
   @override
@@ -43,6 +44,7 @@ class _ApproverPageState extends State<ApproverPage>
     setState(() {
       _churchId = doc['churchId'];
       _approverUid = uid; // 내 uid 저장 — 히스토리 필터용
+      _approverName = doc['name']; // AppBar에 표시할 이름
     });
   }
 
@@ -147,28 +149,50 @@ class _ApproverPageState extends State<ApproverPage>
           expense.approvalChain[i],
     ];
 
-    // Firestore 상태 업데이트
-    await FirebaseFirestore.instance
+    // Firestore 상태 업데이트 + "내가 이 지출을 승인했다"는 개별 기록을
+    // approvalActions에 남기는 걸 batch로 묶어서, 둘 다 성공하거나 둘 다 실패하게 함
+    // (하나만 성공하면 History에 안 뜨는데 실제로는 승인된 것처럼 상태가 꼬일 수 있음)
+    final batch = FirebaseFirestore.instance.batch();
+
+    final expenseRef = FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
         .collection('expenses')
-        .doc(expense.id)
-        .update({
-          'approvalChain': updatedChain.map((s) => s.toMap()).toList(),
-          if (isFinalTier)
-            ...{
-              // 마지막 단계까지 승인됐을 때만 전체 status를 최종 approved로 확정
-              'status': 'approved',
-              'approvedBy': approverName,
-              'approvedByUid': uid, // 히스토리 필터용
-              'approvedAt': FieldValue.serverTimestamp(),
-            }
-          else
-            ...{
-              // 아직 남은 단계가 있으면 다음 담당자한테 넘김 - 전체 status는 pending 그대로 유지
-              'currentTier': expense.currentTier + 1,
-            },
-        });
+        .doc(expense.id);
+    batch.update(expenseRef, {
+      'approvalChain': updatedChain.map((s) => s.toMap()).toList(),
+      if (isFinalTier)
+        ...{
+          // 마지막 단계까지 승인됐을 때만 전체 status를 최종 approved로 확정
+          'status': 'approved',
+          'approvedBy': approverName,
+          'approvedByUid': uid,
+          'approvedAt': FieldValue.serverTimestamp(),
+        }
+      else
+        ...{
+          // 아직 남은 단계가 있으면 다음 담당자한테 넘김 - 전체 status는 pending 그대로 유지
+          'currentTier': expense.currentTier + 1,
+        },
+    });
+
+    // 최종 단계인지 여부와 상관없이, "이 단계를 내가 승인했다"는 기록은 항상 남김
+    // - 이게 있어야 중간 단계 담당자도 자기 History 탭에서 본인이 처리한 걸 볼 수 있음
+    final actionRef = FirebaseFirestore.instance
+        .collection('churches')
+        .doc(_churchId)
+        .collection('approvalActions')
+        .doc();
+    batch.set(actionRef, {
+      'expenseId': expense.id,
+      'approverUid': uid,
+      'approverName': approverName,
+      'action': 'approved',
+      'tier': expense.currentTier,
+      'actedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
   }
 
   // 영수증 반려 (사유 입력)
@@ -241,20 +265,40 @@ class _ApproverPageState extends State<ApproverPage>
           expense.approvalChain[i],
     ];
 
-    // Firestore 상태 업데이트 - 단계와 상관없이 전체 status를 바로 rejected로 확정
-    await FirebaseFirestore.instance
+    // Firestore 상태 업데이트 + approvalActions 기록을 batch로 묶어서 원자적으로 처리
+    // (_approve와 동일한 이유 - 상태 변경과 History 기록이 따로 놀면 안 됨)
+    final batch = FirebaseFirestore.instance.batch();
+
+    final expenseRef = FirebaseFirestore.instance
         .collection('churches')
         .doc(_churchId)
         .collection('expenses')
-        .doc(expense.id)
-        .update({
-          'status': 'rejected',
-          'rejectReason': reason,
-          'approvedBy': approverName,
-          'approvedByUid': uid, // 히스토리 필터용
-          'approvedAt': FieldValue.serverTimestamp(),
-          'approvalChain': updatedChain.map((s) => s.toMap()).toList(),
-        });
+        .doc(expense.id);
+    // 단계와 상관없이 전체 status를 바로 rejected로 확정
+    batch.update(expenseRef, {
+      'status': 'rejected',
+      'rejectReason': reason,
+      'approvedBy': approverName,
+      'approvedByUid': uid,
+      'approvedAt': FieldValue.serverTimestamp(),
+      'approvalChain': updatedChain.map((s) => s.toMap()).toList(),
+    });
+
+    final actionRef = FirebaseFirestore.instance
+        .collection('churches')
+        .doc(_churchId)
+        .collection('approvalActions')
+        .doc();
+    batch.set(actionRef, {
+      'expenseId': expense.id,
+      'approverUid': uid,
+      'approverName': approverName,
+      'action': 'rejected',
+      'tier': expense.currentTier,
+      'actedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
   }
 
   // 영수증 카드 UI (pending용 — 승인/반려 버튼 있음)
@@ -582,41 +626,83 @@ class _ApproverPageState extends State<ApproverPage>
   }
 
   // 내가 처리한 history 목록
+  //
+  // 예전엔 expenses 문서의 top-level approvedByUid로 필터링했는데, 그 필드는
+  // 승인 체인의 "마지막 단계"를 처리한 사람한테만 기록돼서, 중간 단계 담당자는
+  // 자기가 승인했어도 여기 안 떴음(버그). 그래서 이제 _approve/_reject에서
+  // 매번 남기는 approvalActions 기록(내가 처리한 것만 독립적으로 쌓인 컬렉션)을
+  // 기준으로 조회함 - 몇 번째 단계를 처리했든 무조건 본인 기록이 남음.
   Widget _buildHistoryList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('churches')
           .doc(_churchId)
-          .collection('expenses')
-          .where('approvedByUid', isEqualTo: _approverUid) // 내가 처리한 것만
-          .where('status', whereIn: ['approved', 'rejected'])
+          .collection('approvalActions')
+          .where('approverUid', isEqualTo: _approverUid)
           .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+      builder: (context, actionSnapshot) {
+        if (actionSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (!snapshot.hasData) {
+        if (!actionSnapshot.hasData || actionSnapshot.data!.docs.isEmpty) {
           return const Center(
             child: Text('No history yet',
                 style: TextStyle(color: Colors.grey)),
           );
         }
-        // member가 soft-delete한 건은 approver 본인 History에서도 제외
-        final expenses = snapshot.data!.docs
-            .where((d) => (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] != true)
-            .map((doc) => Expense.fromFirestore(doc))
-            .toList();
-        if (expenses.isEmpty) {
-          return const Center(
-            child: Text('No history yet',
-                style: TextStyle(color: Colors.grey)),
-          );
+
+        // actedAt 기준 최신순으로 정렬 (Firestore 쿼리에 orderBy를 안 쓴 건, 다른
+        // 필드로 where + orderBy를 같이 쓰면 복합 인덱스를 따로 만들어야 해서 그럼)
+        final actionDocs = actionSnapshot.data!.docs.toList()
+          ..sort((a, b) {
+            final aTime = a['actedAt'] as Timestamp?;
+            final bTime = b['actedAt'] as Timestamp?;
+            if (aTime == null || bTime == null) return 0;
+            return bTime.compareTo(aTime);
+          });
+
+        // 같은 지출을 두 단계에 걸쳐 내가 처리한 경우(드물지만 한 사람이 두 단계를
+        // 겸임하는 경우) 카드가 중복으로 뜨지 않도록 expenseId 기준 중복 제거
+        final expenseIds = <String>[];
+        for (final doc in actionDocs) {
+          final expenseId = doc['expenseId'] as String;
+          if (!expenseIds.contains(expenseId)) expenseIds.add(expenseId);
         }
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          itemCount: expenses.length,
-          itemBuilder: (context, index) =>
-              _buildHistoryCard(expenses[index]),
+
+        return FutureBuilder<List<DocumentSnapshot>>(
+          future: Future.wait(expenseIds.map(
+            (id) => FirebaseFirestore.instance
+                .collection('churches')
+                .doc(_churchId)
+                .collection('expenses')
+                .doc(id)
+                .get(),
+          )),
+          builder: (context, expenseSnapshot) {
+            if (!expenseSnapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            // member가 soft-delete한 건은 approver 본인 History에서도 제외
+            final expenses = expenseSnapshot.data!
+                .where((d) =>
+                    d.exists &&
+                    (d.data() as Map<String, dynamic>?)?['hiddenFromMember'] !=
+                        true)
+                .map((doc) => Expense.fromFirestore(doc))
+                .toList();
+            if (expenses.isEmpty) {
+              return const Center(
+                child: Text('No history yet',
+                    style: TextStyle(color: Colors.grey)),
+              );
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              itemCount: expenses.length,
+              itemBuilder: (context, index) =>
+                  _buildHistoryCard(expenses[index]),
+            );
+          },
         );
       },
     );
@@ -636,7 +722,12 @@ class _ApproverPageState extends State<ApproverPage>
     return Scaffold(
       backgroundColor: Colors.orange.shade50,
       appBar: AppBar(
-        title: Text(l10n.approverDashboard),
+        // 이름을 아직 못 불러온 로딩 중엔 이름 없는 기본 제목을 보여줌
+        title: Text(
+          _approverName != null
+              ? l10n.approverDashboardWithName(_approverName!)
+              : l10n.approverDashboard,
+        ),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: [
