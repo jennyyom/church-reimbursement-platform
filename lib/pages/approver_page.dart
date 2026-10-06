@@ -449,10 +449,32 @@ class _ApproverPageState extends State<ApproverPage>
 
   // 히스토리 카드 UI (승인/반려 버튼 없음, 상태 배지 있음)
   Widget _buildHistoryCard(Expense expense) {
-    // 상태별 배지 색상
-    final isApproved = expense.status == ExpenseStatus.approved;
-    final badgeBg = isApproved ? const Color(0xFFEAF3DE) : const Color(0xFFFCEBEB);
-    final badgeText = isApproved ? const Color(0xFF27500A) : const Color(0xFF501313);
+    // 상태별 배지 문구·색상
+    //
+    // 예전엔 "approved가 아니면 전부 Rejected"로 처리했는데, 이건 승인 체인이 1단계뿐이던
+    // 시절의 가정이었음. 지금은 $500 초과 건이 2단계(부서장 → Admin Pastor)라서, 1차
+    // 승인자가 승인해도 전체 status는 다음 단계를 기다리며 pending으로 남음
+    // (_approve 주석 참고). 그 상태에서 1차 승인자의 History에 이 지출이 뜨면, 실제로는
+    // 승인했는데 "Rejected"로 보이는 버그가 있었음. 그래서 pending을 별도 상태로 나눠서
+    // "아직 다음 단계에서 진행 중"이라는 걸 그대로 보여줌.
+    final String badgeLabel;
+    final Color badgeBg;
+    final Color badgeText;
+    switch (expense.status) {
+      case ExpenseStatus.approved:
+        badgeLabel = 'Approved';
+        badgeBg = const Color(0xFFEAF3DE);
+        badgeText = const Color(0xFF27500A);
+      case ExpenseStatus.rejected:
+        badgeLabel = 'Rejected';
+        badgeBg = const Color(0xFFFCEBEB);
+        badgeText = const Color(0xFF501313);
+      case ExpenseStatus.pending:
+        // 내 단계는 끝났지만 최종 결정(다음 tier 승인/거절)이 아직 안 난 상태
+        badgeLabel = 'In Progress';
+        badgeBg = const Color(0xFFFFF4E0);
+        badgeText = const Color(0xFF7A4B00);
+    }
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -520,7 +542,7 @@ class _ApproverPageState extends State<ApproverPage>
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          isApproved ? 'Approved' : 'Rejected',
+                          badgeLabel,
                           style: TextStyle(
                               fontSize: 11,
                               color: badgeText,
