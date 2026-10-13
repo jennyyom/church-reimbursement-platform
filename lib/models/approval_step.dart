@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 enum ApprovalStepStatus { pending, approved, rejected, skipped }
 
 class ApprovalStep {
-  final int tier;                 // 1, 2 — 몇 번째 단계인지
-  final String role;              // 'department_head', 'admin_pastor'
+  final int tier;                 // 1, 2, 3 — 몇 번째 단계인지
+  final String role;              // 'department_head', 'admin_pastor', 'finance_chair'
   final String? approverUid;      // 이 단계를 처리할 사람 (아직 미배정이면 null)
   final ApprovalStepStatus status;
   final String? actedBy;          // 실제 승인/거절한 사람 이름
