@@ -426,7 +426,7 @@ class _ApproverPageState extends State<ApproverPage>
                             fontSize: 13, color: Colors.grey)),
                   ],
                   const SizedBox(height: 6),
-                  // 승인 진행 흐름 (예: "Mike 10/6 ✓ → You → Finance Chair")
+                  // 승인 진행 흐름 (예: "Jenny 10/5 → Mike 10/6 ✓ → You (Admin. Pastor) → Finance Chair")
                   _buildApprovalFlow(expense),
                   const SizedBox(height: 8),
                   // 승인/반려 버튼 - 맨 아래 오른쪽에 나란히 (위 주석 4번 참고)
@@ -494,47 +494,76 @@ class _ApproverPageState extends State<ApproverPage>
     'finance_chair': 'Finance Chair',
   };
 
-  // 승인 진행 흐름 한 줄: "Mike 10/6 ✓ → Pastor 10/7 ✓ → You → Finance Chair"
+  // 승인 진행 흐름 한 줄 - Pending 카드와 History 카드가 같이 씀.
+  //   Pending 예: "Jenny 10/5 → Mike 10/6 ✓ → You (Admin. Pastor) → Finance Chair"
+  //   History 예: "Jenny 10/5 → Mike 10/6 ✓ → Admin. Pastor → Finance Chair"
   //
-  // 지금 단계 승인자가 "앞에서 누가 언제 승인했는지"와 "내 뒤에 누가 더 남았는지"를
-  // 한눈에 보게 하려고 추가함. 데이터는 이미 approvalChain 각 단계에 저장된
-  // actedBy(승인한 사람 이름)/actedAt(승인 시각)을 그대로 씀 - DB 변경 없음.
-  //   - 이미 승인한 단계(현재 tier 앞) : "이름 월/일 ✓" 초록
-  //   - 지금 단계(= 이 화면을 보는 나)  : "You" 주황 굵게
-  //   - 아직 남은 단계                 : 역할 이름 회색 (아직 승인 전이라 이름 대신 역할)
-  // 남은 단계까지 보여주는 이유: 내가 마지막 승인자인지 바로 알 수 있게
-  // (예: Admin. Pastor 입장에서 $500 이하 건은 "→ You"로 끝나고, 초과 건은 뒤에 Finance Chair가 보임)
+  // 승인자가 "누가 언제 냈고, 앞에서 누가 언제 승인했고, 지금 어디서 기다리는지, 뒤에 누가
+  // 남았는지"를 한눈에 보게 하려고 추가함. 데이터는 이미 저장된 값을 그대로 씀 - DB 변경 없음
+  // (제출자: userName/createdAt, 각 단계: status/actedBy/actedAt/approverUid).
+  //   - 맨 앞 제출자 "이름 월/일"           : 회색 - 흐름이 항상 "누가 언제 냈는지"부터 시작
+  //     (처음엔 승인 단계만 보여줬더니 1단계 승인자 화면엔 "You"만 덩그러니 떠서 뜻이 불분명했음)
+  //   - 승인한 단계 "이름 월/일 ✓"           : 초록 - 내가 처리한 단계라도 "You" 대신 실제 이름
+  //     (History에서 "You"보다 누가 승인했는지 이름이 남는 게 더 분명해서. 캡처해서 공유할 때도 그대로 읽힘)
+  //   - 거절한 단계 "이름 월/일 ✕"           : 빨강
+  //   - 지금 기다리는 단계                    : 주황 - 내 차례면 "You (역할)", 아니면 역할 이름
+  //     (Pending 화면에선 항상 내 차례, History 화면에선 다음 사람 차례)
+  //   - 아직 남은 단계                       : 회색 역할 이름 (아직 승인 전이라 이름 대신 역할)
+  // 단계마다 i < currentTier 같은 위치 계산 대신 각 단계의 status를 직접 봄 -
+  // 마지막 단계가 승인되면 currentTier는 그대로라서 위치로 판단하면 틀어짐.
   //
   // Wrap + 단계별 조각: 폰에서 길어지면 "이름 날짜 ✓" 한 덩어리 단위로 다음 줄로 넘어가게 함
   // (Text 하나로 이으면 "Mike 10/6"이 중간에서 끊길 수 있음)
   Widget _buildApprovalFlow(Expense expense) {
+    const green = Color(0xFF27500A);
+    const red = Color(0xFF501313);
+    const orange = Color(0xFFB45309);
+    final grey = Colors.grey.shade500;
     final currentIndex = expense.currentTier - 1;
-    final pieces = <Widget>[];
+    // 월/일도 앱 언어 순서로 (영어 10/6, 한국어 10. 6.)
+    String md(DateTime d) => DateFormat.Md(_localeName).format(d);
+
+    // "이름 날짜" + (선택) 아이콘 한 덩어리
+    Widget piece(String text, Color color, {IconData? icon, bool bold = false}) {
+      final label = Text(text,
+          style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: bold ? FontWeight.w600 : FontWeight.normal));
+      if (icon == null) return label;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          label,
+          const SizedBox(width: 2),
+          Icon(icon, size: 13, color: color),
+        ],
+      );
+    }
+
+    final pieces = <Widget>[
+      piece('${expense.userName ?? '?'} ${md(expense.createdAt)}', grey),
+    ];
     for (var i = 0; i < expense.approvalChain.length; i++) {
       final step = expense.approvalChain[i];
-      if (i > 0) {
-        pieces.add(Text('→', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)));
-      }
-      if (i < currentIndex) {
+      final role = _roleLabels[step.role] ?? step.role;
+      final isMe = step.approverUid != null && step.approverUid == _approverUid;
+      pieces.add(Text('→', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)));
+
+      if (step.status == ApprovalStepStatus.approved ||
+          step.status == ApprovalStepStatus.rejected) {
+        final approved = step.status == ApprovalStepStatus.approved;
+        final who = step.actedBy ?? '?';
         final at = step.actedAt;
-        pieces.add(Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              // 월/일도 앱 언어 순서로 (영어 10/6, 한국어 10. 6.)
-              at == null ? (step.actedBy ?? '?') : '${step.actedBy ?? '?'} ${DateFormat.Md(_localeName).format(at)}',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF27500A)),
-            ),
-            const SizedBox(width: 2),
-            const Icon(Icons.check, size: 13, color: Color(0xFF27500A)),
-          ],
+        pieces.add(piece(
+          at == null ? who : '$who ${md(at)}',
+          approved ? green : red,
+          icon: approved ? Icons.check : Icons.close,
         ));
-      } else if (i == currentIndex) {
-        pieces.add(const Text('You',
-            style: TextStyle(fontSize: 12, color: Color(0xFFB45309), fontWeight: FontWeight.w600)));
+      } else if (i == currentIndex && expense.status == ExpenseStatus.pending) {
+        pieces.add(piece(isMe ? 'You ($role)' : role, orange, bold: true));
       } else {
-        pieces.add(Text(_roleLabels[step.role] ?? step.role,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500)));
+        pieces.add(piece(role, grey));
       }
     }
     return Wrap(
@@ -618,20 +647,49 @@ class _ApproverPageState extends State<ApproverPage>
               ),
             ),
             const SizedBox(width: 12),
+            // Pending 카드와 같은 4줄 구조 (이름+부서 | 상태, 금액·날짜, 설명, 승인 흐름).
+            // 예전 History 카드엔 부서도 승인 흐름도 없어서, 내가 처리한 뒤 이 건이 지금
+            // 어디까지 갔는지(다음 사람이 승인/거절했는지) 알 수 없었음. 버튼은 없음.
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 1줄: 이름 + 부서 배지 | 오른쪽에 전체 상태 배지
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // 제출자 이름
-                      Text(
-                        expense.userName ?? 'Unknown',
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w500),
+                      Expanded(
+                        // Wrap: 폰에서 부서 이름이 길면 배지가 다음 줄로 내려가게 (잘리지 않게)
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              expense.userName ?? 'Unknown',
+                              style: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                            if (expense.departmentName != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.indigo.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  expense.departmentName!,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.indigo.shade400,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                      // 상태 배지
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
@@ -649,46 +707,37 @@ class _ApproverPageState extends State<ApproverPage>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  // 금액
-                  if (expense.amount != null)
-                    Row(
+                  const SizedBox(height: 4),
+                  // 2줄: 금액 · 제출 날짜 (Pending 카드와 같은 형식)
+                  Text.rich(
+                    TextSpan(
                       children: [
-                        const Icon(Icons.attach_money,
-                            size: 14, color: Colors.green),
-                        const SizedBox(width: 4),
-                        Text('\$${expense.amount!.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 13)),
-                      ],
-                    ),
-                  const SizedBox(height: 3),
-                  // 설명
-                  if (expense.description != null &&
-                      expense.description!.isNotEmpty)
-                    Row(
-                      children: [
-                        const Icon(Icons.edit, size: 14, color: Colors.orange),
-                        const SizedBox(width: 4),
-                        Text(expense.description!,
+                        if (expense.amount != null) ...[
+                          TextSpan(
+                            text: '\$${expense.amount!.toStringAsFixed(2)}',
                             style: const TextStyle(
-                                fontSize: 13, color: Colors.grey)),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87),
+                          ),
+                          const TextSpan(text: '  ·  '),
+                        ],
+                        TextSpan(text: DateFormat.yMd(_localeName).format(expense.createdAt)),
                       ],
                     ),
-                  const SizedBox(height: 3),
-                  // 날짜
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today,
-                          size: 14, color: Colors.red),
-                      const SizedBox(width: 4),
-                      Text(
-                        // 앱 언어 순서로 (Pending 카드와 같은 형식)
-                        DateFormat.yMd(_localeName).format(expense.createdAt),
-                        style:
-                            const TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
-                    ],
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
+                  // 3줄: 설명 (없으면 빠짐)
+                  if (expense.description != null &&
+                      expense.description!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(expense.description!,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.grey)),
+                  ],
+                  const SizedBox(height: 6),
+                  // 4줄: 승인 흐름 (예: "Jenny 10/5 → Mike 10/6 ✓ → Admin. Pastor → Finance Chair")
+                  _buildApprovalFlow(expense),
                 ],
               ),
             ),
@@ -829,8 +878,13 @@ class _ApproverPageState extends State<ApproverPage>
             return ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               itemCount: expenses.length,
-              itemBuilder: (context, index) =>
-                  _buildHistoryCard(expenses[index]),
+              // Pending 목록과 같게 카드 최대 폭 720, 화면 가운데 (웹에서 카드가 끝까지 늘어나지 않게)
+              itemBuilder: (context, index) => Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: _buildHistoryCard(expenses[index]),
+                ),
+              ),
             );
           },
         );
