@@ -303,103 +303,161 @@ void _showLanguagePicker() {
                           badgeText = const Color(0xFF633806);
                         }
 
+                        // 금액 + 상태 배지 (+ 삭제 버튼) - 넓은/좁은 화면 레이아웃 둘 다 오른쪽에
+                        // 똑같이 들어가서, 두 번 쓰지 않게 변수로 한 번만 만들어 둠
+                        final amountStatus = Row(
+                          children: [
+                            if (e.amount != null)
+                              Text(
+                                '\$${e.amount!.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: badgeBg,
+                                borderRadius:
+                                    BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                // enum.name으로 String 변환
+                                e.status.name[0].toUpperCase() +
+                                    e.status.name.substring(1),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: badgeText,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            // 삭제 버튼 - pending/rejected만 (approved는 지급 기록이라 보존)
+                            if (e.status == ExpenseStatus.pending ||
+                                e.status == ExpenseStatus.rejected) ...[
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () => _confirmDeleteExpense(e.id),
+                                child: Icon(Icons.delete_outline,
+                                    size: 18, color: Colors.grey.shade400),
+                              ),
+                            ],
+                          ],
+                        );
+
+                        // 날짜 문자열 - 넓은 화면에선 설명 옆에, 좁은 화면에선 두 번째 줄에 씀
+                        final dateText = '${e.createdAt.year}/${e.createdAt.month}/${e.createdAt.day}';
+
+                        // 폰처럼 좁은 화면인지 - 폰은 가로 폭이 보통 360~430, 태블릿/컴퓨터는 600보다 넓음.
+                        // 웹/앱(kIsWeb)이 아니라 "화면 너비"로 나누는 이유: 교인들이 폰 브라우저로
+                        // 웹사이트에 들어와도 화면이 좁기는 똑같아서, 그때도 좁은 레이아웃이 나와야 함.
+                        final isNarrow = MediaQuery.sizeOf(context).width < 600;
+
                         return Column(
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                // 설명 + 날짜 - 원래 위아래로 두 줄이었는데, 부서 배지처럼
-                                // 한 줄에 나란히 놓으면 더 컴팩트해 보여서 옆으로 붙임
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                                  textBaseline: TextBaseline.alphabetic,
-                                  children: [
-                                    Text(
-                                      e.description ?? 'Receipt',
-                                      style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '${e.createdAt.year}/${e.createdAt.month}/${e.createdAt.day}',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey.shade400),
-                                    ),
-                                  ],
-                                ),
-                                // 제출한 부서 - 승인 라우팅이 부서 기준으로 도는데, 정작
-                                // 제출한 본인은 어느 부서로 보냈는지 확인할 데가 없어서 추가함.
-                                // 왼쪽(설명/날짜)과 오른쪽(금액/상태) 사이에 항상 비어있던
-                                // 공간을 Expanded+Center로 채워서 배지 형태로 보여줌 -
-                                // 왼쪽 Column에 세 번째 줄로 쌓으면 글씨가 계속 작아지고
-                                // 줄만 늘어나서, 대신 원래 비어있던 가운데 공간을 활용함.
-                                // departmentName이 없으면(옛날 지출 등) 빈 공간 그대로 둠.
-                                Expanded(
-                                  child: e.departmentName == null
-                                      ? const SizedBox.shrink()
-                                      : Center(
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: Colors.indigo.shade50,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
+                            isNarrow
+                                // 좁은 화면(폰): 가운데에 부서 배지를 둘 자리가 없어서(설명과 금액
+                                // 사이 공간이 거의 없음) 두 줄로 나눔.
+                                //   1줄: 설명 + 오른쪽에 금액/상태
+                                //   2줄: 날짜 · 부서 - 금액/상태 아래까지 화면 전체 폭을 씀
+                                // 처음엔 설명과 날짜·부서를 둘 다 금액 왼쪽에 쌓았는데, 금액/상태가
+                                // 오른쪽 폭을 차지해서 부서 이름이 조금만 길어도 줄바꿈됐음.
+                                // 그래서 날짜·부서 줄을 금액 아래로 내려 전체 폭을 쓰게 함.
+                                // 2줄은 연한 남색(indigo.shade300) - 회색보다 잘 보이면서도 설명보다는
+                                // 눈에 덜 띄게. 부서가 없는 옛날 지출은 날짜만 나옴.
+                                //
+                                // 말줄임(...)으로 자르지 않는 이유: 이 목록은 눌러도 상세 화면이 없어서
+                                // 잘린 글자를 볼 방법이 없음 - 줄이 늘어나더라도 설명과 부서 이름은
+                                // 항상 전부 보여야 함 (길면 다음 줄로 줄바꿈)
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          // Expanded: 설명이 길어도 오른쪽 금액/상태를 밀어내지 않고
+                                          // 남은 폭 안에서 줄바꿈되게 함
+                                          Expanded(
                                             child: Text(
-                                              e.departmentName!,
-                                              style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.indigo.shade400,
+                                              e.description ?? 'Receipt',
+                                              style: const TextStyle(
+                                                  fontSize: 13,
                                                   fontWeight: FontWeight.w500),
                                             ),
                                           ),
-                                        ),
-                                ),
-                                // 금액 + 상태 배지 (자기 너비만 차지 - 오른쪽 정렬)
-                                Row(
-                                  children: [
-                                    if (e.amount != null)
+                                          const SizedBox(width: 8),
+                                          amountStatus,
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
                                       Text(
-                                        '\$${e.amount!.toStringAsFixed(2)}',
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: badgeBg,
-                                        borderRadius:
-                                            BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        // enum.name으로 String 변환
-                                        e.status.name[0].toUpperCase() +
-                                            e.status.name.substring(1),
+                                        e.departmentName == null
+                                            ? dateText
+                                            : '$dateText · ${e.departmentName}',
                                         style: TextStyle(
-                                          fontSize: 11,
-                                          color: badgeText,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    // 삭제 버튼 - pending/rejected만 (approved는 지급 기록이라 보존)
-                                    if (e.status == ExpenseStatus.pending ||
-                                        e.status == ExpenseStatus.rejected) ...[
-                                      const SizedBox(width: 4),
-                                      InkWell(
-                                        onTap: () => _confirmDeleteExpense(e.id),
-                                        child: Icon(Icons.delete_outline,
-                                            size: 18, color: Colors.grey.shade400),
+                                            fontSize: 11,
+                                            color: Colors.indigo.shade300),
                                       ),
                                     ],
+                                  )
+                                // 넓은 화면(컴퓨터 웹): 기존 한 줄 레이아웃 그대로
+                                : Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    // 설명 + 날짜 - 원래 위아래로 두 줄이었는데, 부서 배지처럼
+                                    // 한 줄에 나란히 놓으면 더 컴팩트해 보여서 옆으로 붙임
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
+                                      children: [
+                                        Text(
+                                          e.description ?? 'Receipt',
+                                          style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          dateText,
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade400),
+                                        ),
+                                      ],
+                                    ),
+                                    // 제출한 부서 - 승인 라우팅이 부서 기준으로 도는데, 정작
+                                    // 제출한 본인은 어느 부서로 보냈는지 확인할 데가 없어서 추가함.
+                                    // 왼쪽(설명/날짜)과 오른쪽(금액/상태) 사이에 항상 비어있던
+                                    // 공간을 Expanded+Center로 채워서 배지 형태로 보여줌 -
+                                    // 왼쪽 Column에 세 번째 줄로 쌓으면 글씨가 계속 작아지고
+                                    // 줄만 늘어나서, 대신 원래 비어있던 가운데 공간을 활용함.
+                                    // departmentName이 없으면(옛날 지출 등) 빈 공간 그대로 둠.
+                                    Expanded(
+                                      child: e.departmentName == null
+                                          ? const SizedBox.shrink()
+                                          : Center(
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.indigo.shade50,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  e.departmentName!,
+                                                  style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors.indigo.shade400,
+                                                      fontWeight: FontWeight.w500),
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                    // 금액 + 상태 배지 (자기 너비만 차지 - 오른쪽 정렬)
+                                    amountStatus,
                                   ],
                                 ),
-                              ],
-                            ),
                             // 마지막 아이템 제외 구분선
                             if (!isLast)
                               Divider(
