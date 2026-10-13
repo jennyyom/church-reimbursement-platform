@@ -16,12 +16,15 @@ class _AdminPageState extends State<AdminPage> {
   String _selectedMenu = 'overview';
   String? _churchId;
 
-  // Admin Pastor 지정 UI(Departments 탭 상단)용 상태.
+  // 교회 전체 승인자(Admin Pastor, Finance Chair) 지정 UI(Departments 탭 상단)용 상태.
   //
-  // Admin Pastor는 $500 초과 지출의 2단계(tier 2) 승인자 - 부서장(tier 1)과 달리
-  // 부서마다 따로 있는 게 아니라 교회 전체에 한 명만 지정됨. 나중에(다음 단계) 지출
-  // 제출 시점에 이 값(churches/{churchId}.adminPastorUid)을 approvalChain에 복사해 넣게 됨.
+  // 부서장(tier 1)은 부서마다 따로 있지만, 이 둘은 교회 전체에 한 명씩만 지정됨:
+  //   - Admin Pastor  : 모든 지출의 2단계(tier 2) 승인자
+  //   - Finance Chair : $500 초과 지출의 3단계(tier 3) 승인자
+  // 지출 제출 시점에 churches/{churchId}의 adminPastorUid / financeChairUid가
+  // approvalChain에 복사됨 (upload_page.dart의 _resolveApprovalChain 참고).
   String? _adminPastorUid;                       // 현재 지정된 사람의 uid - null이면 미지정
+  String? _financeChairUid;                      // 현재 지정된 사람의 uid - null이면 미지정
   List<QueryDocumentSnapshot>? _churchUsers;     // 드롭다운 후보 목록(이 교회 유저 전체) - null이면 아직 로딩 중
 
   // Overview/History 각각 독립적인 기간 필터 (데이터 많아져도 한 번에 다 안 불러오게)
@@ -85,18 +88,18 @@ class _AdminPageState extends State<AdminPage> {
         .get();
     final churchId = doc['churchId'] as String;
     setState(() => _churchId = churchId);
-    _loadAdminPastorAndUsers(churchId); // churchId를 알아야 조회할 수 있어서 여기서 이어서 호출
+    _loadChurchApproversAndUsers(churchId); // churchId를 알아야 조회할 수 있어서 여기서 이어서 호출
   }
 
-  // Admin Pastor 드롭다운을 그리는 데 필요한 두 가지를 한 번만 불러와서 상태에 저장함:
-  // 1) 이 교회의 현재 adminPastorUid (churches/{churchId} 문서)
+  // Admin Pastor / Finance Chair 드롭다운을 그리는 데 필요한 두 가지를 한 번만 불러와서 상태에 저장함:
+  // 1) 이 교회의 현재 adminPastorUid, financeChairUid (둘 다 같은 churches/{churchId} 문서라 한 번만 조회)
   // 2) 드롭다운 후보로 보여줄 이 교회 유저 전체 목록
   //
   // upload_page.dart의 부서 드롭다운에서, 실시간 스트림(StreamBuilder)으로 목록을 구독했더니
   // 드롭다운을 여는 순간 부모가 재빌드되면서 메뉴가 저절로 닫혀버리는 문제를 겪었었음.
   // 이 목록도 화면에 떠 있는 동안 실시간으로 바뀔 필요는 없으니, 같은 이유로 스트림 대신
   // 한 번만 조회(.get())해서 상태에 저장해두고 그 값으로만 드롭다운을 그리도록 함.
-  Future<void> _loadAdminPastorAndUsers(String churchId) async {
+  Future<void> _loadChurchApproversAndUsers(String churchId) async {
     final churchDoc = await FirebaseFirestore.instance.collection('churches').doc(churchId).get();
     final usersSnapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -105,6 +108,7 @@ class _AdminPageState extends State<AdminPage> {
     if (!mounted) return; // 조회하는 사이에 화면을 나갔으면 setState 하면 안 됨
     setState(() {
       _adminPastorUid = churchDoc.data()?['adminPastorUid'] as String?;
+      _financeChairUid = churchDoc.data()?['financeChairUid'] as String?;
       _churchUsers = usersSnapshot.docs;
     });
   }
@@ -856,6 +860,92 @@ class _AdminPageState extends State<AdminPage> {
   // Departments 탭 - 부서 목록 화면
   // 사이드바에서 "Departments" 클릭하면 이 화면이 보임
   // ============================================
+  // Departments 탭 상단의 "교회 전체 승인자" 지정 카드 (Admin Pastor, Finance Chair 공용).
+  //
+  // 금액별로 누가 서명해야 하는지는 카드마다 따로 적지 않고, 두 카드 위의 "Approval:"
+  // 안내 문구에 한 번에 모아서 보여줌 (종이 양식의 5. Signatures(*): 줄과 같은 방식).
+  // 그래서 카드에는 제목과 드롭다운만 있음.
+  //
+  // 두 카드는 제목/저장할 필드 이름만 다르고 드롭다운 동작(Unassigned 처리, 탈퇴 유저
+  // 처리, 고르는 즉시 저장)은 완전히 같음. 카드를 복사해서 두 벌 두면 나중에 드롭다운 동작을
+  // 고칠 때 한쪽만 고치는 실수가 생기기 쉬워서, 하나의 함수로 공유함.
+  //   - fieldName : churches/{churchId} 문서에서 이 승인자 uid를 저장하는 필드
+  //                 ('adminPastorUid' 또는 'financeChairUid')
+  //   - onSaved   : 저장 후 화면 상태(_adminPastorUid 등)를 갱신하는 콜백 - 어느 상태 변수를
+  //                 바꿀지는 카드마다 다르니 호출하는 쪽에서 넘겨줌
+  Widget _buildChurchApproverCard({
+    required String title,
+    required String? currentUid,
+    required String fieldName,
+    required void Function(String?) onSaved,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          // _churchUsers가 아직 null이면(_loadChurchApproversAndUsers 진행 중) 로딩 스피너만 보여줌
+          _churchUsers == null
+              ? const Center(child: CircularProgressIndicator())
+              : Builder(builder: (context) {
+                  final users = _churchUsers!;
+                  final userNameById = {
+                    for (final u in users) u.id: (u.data() as Map<String, dynamic>?)?['name'] as String? ?? '?',
+                  };
+                  // 지정된 사람이 더 이상 이 교회 유저 목록에 없으면(탈퇴 등)
+                  // Dropdown의 value가 items에 없는 상태가 되어 assertion 에러가 나므로,
+                  // 실제 목록에 있는 uid인지 확인해서 없으면 "Unassigned"로 보여줌
+                  final dropdownValue = userNameById.containsKey(currentUid) ? currentUid : null;
+
+                  return SizedBox(
+                    width: 320,
+                    child: DropdownButtonFormField<String?>(
+                      value: dropdownValue,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Unassigned', style: TextStyle(color: Colors.grey)),
+                        ),
+                        ...users.map((userDoc) {
+                          final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+                          final userName = userData['name'] as String? ?? '?';
+                          final userRole = userData['role'] as String? ?? 'member';
+                          return DropdownMenuItem<String?>(
+                            value: userDoc.id,
+                            child: Text('$userName ($userRole)', overflow: TextOverflow.ellipsis),
+                          );
+                        }),
+                      ],
+                      // 부서 배정 드롭다운(유저 목록 탭)과 같은 방식 - 별도 저장 버튼 없이
+                      // 고르는 즉시 churches/{churchId} 문서에 바로 씀
+                      onChanged: (newUid) async {
+                        await FirebaseFirestore.instance
+                            .collection('churches')
+                            .doc(_churchId)
+                            .update({fieldName: newUid});
+                        onSaved(newUid);
+                      },
+                    ),
+                  );
+                }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDepartments() {
     // churchId가 아직 로딩 안 됐으면 로딩 스피너만 보여줌
     if (_churchId == null) return const Center(child: CircularProgressIndicator());
@@ -898,78 +988,58 @@ class _AdminPageState extends State<AdminPage> {
               ),
               const SizedBox(height: 20),
 
-              // Admin Pastor 지정 카드 - 부서장(Dept Chair)은 부서마다 따로 있지만,
-              // Admin Pastor는 $500 초과 지출의 2단계 승인자로 교회 전체에 한 명만 지정됨.
-              // 그래서 부서 목록과는 별개로, 이 화면 상단에 한 번만 두는 카드로 만듦.
-              Container(
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Admin Pastor', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Tier 2 approver for expenses over \$500. One person for the whole church, regardless of department.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+              // 승인 규칙 안내 - 종이 양식의 "5. Signatures(*): Total Above $500 requires ..." 줄을 참고해서,
+              // 교회 분들이 익숙한 문구로 바로 알아볼 수 있게 함.
+              // 금액별 규칙은 approval_chain_builder.dart의 buildApprovalChain과 맞춰야 함
+              // (기준이 바뀌면 이 문구도 같이 고칠 것).
+              // Dept. Chair는 부서마다 여러 명이라 아래 부서 목록에서 지정하고,
+              // Admin. Pastor와 Finance Chair는 교회 전체에 한 명씩이라 이 위쪽 카드에서 지정함 -
+              // 그 차이를 마지막 줄에서 설명해줌.
+              Text.rich(
+                TextSpan(
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.5),
+                  children: const [
+                    TextSpan(
+                      text: 'Approval: ',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
                     ),
-                    const SizedBox(height: 12),
-                    // _churchUsers가 아직 null이면(_loadAdminPastorAndUsers 진행 중) 로딩 스피너만 보여줌
-                    _churchUsers == null
-                        ? const Center(child: CircularProgressIndicator())
-                        : Builder(builder: (context) {
-                            final users = _churchUsers!;
-                            final userNameById = {
-                              for (final u in users) u.id: (u.data() as Map<String, dynamic>?)?['name'] as String? ?? '?',
-                            };
-                            // 지정된 사람이 더 이상 이 교회 유저 목록에 없으면(탈퇴 등)
-                            // Dropdown의 value가 items에 없는 상태가 되어 assertion 에러가 나므로,
-                            // 실제 목록에 있는 uid인지 확인해서 없으면 "Unassigned"로 보여줌
-                            final dropdownValue = userNameById.containsKey(_adminPastorUid) ? _adminPastorUid : null;
-
-                            return SizedBox(
-                              width: 320,
-                              child: DropdownButtonFormField<String?>(
-                                value: dropdownValue,
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  isDense: true,
-                                ),
-                                items: [
-                                  const DropdownMenuItem<String?>(
-                                    value: null,
-                                    child: Text('Unassigned', style: TextStyle(color: Colors.grey)),
-                                  ),
-                                  ...users.map((userDoc) {
-                                    final userData = userDoc.data() as Map<String, dynamic>? ?? {};
-                                    final userName = userData['name'] as String? ?? '?';
-                                    final userRole = userData['role'] as String? ?? 'member';
-                                    return DropdownMenuItem<String?>(
-                                      value: userDoc.id,
-                                      child: Text('$userName ($userRole)', overflow: TextOverflow.ellipsis),
-                                    );
-                                  }),
-                                ],
-                                // 부서 배정 드롭다운(유저 목록 탭)과 같은 방식 - 별도 저장 버튼 없이
-                                // 고르는 즉시 churches/{churchId} 문서에 바로 씀
-                                onChanged: (newUid) async {
-                                  await FirebaseFirestore.instance
-                                      .collection('churches')
-                                      .doc(_churchId)
-                                      .update({'adminPastorUid': newUid});
-                                  setState(() => _adminPastorUid = newUid);
-                                },
-                              ),
-                            );
-                          }),
+                    TextSpan(
+                      text: 'Total up to \$500 requires 2 signatures - Dept. Chair & Admin. Pastor.\n'
+                          'Total above \$500 requires 3 signatures - Dept. Chair, Admin. Pastor & Finance Chair.\n'
+                          'Dept. Chair is set per department below. Admin. Pastor and Finance Chair are one each for the whole church.',
+                    ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 12),
+
+              // 교회 전체 승인자 지정 카드 2개를 가로로 나란히 배치.
+              // 둘 다 "교회 전체에 한 명" 지정하는 같은 성격의 설정이라 한 줄에 같이 보이는 게
+              // 자연스럽고, 세로로 쌓으면 부서 목록이 그만큼 아래로 밀림.
+              // Expanded로 감싸서 화면 너비를 반씩 나눠 가짐 (카드 안 드롭다운은 width 320이지만,
+              // 반쪽 너비가 320보다 좁아지면 그 너비에 맞춰 줄어들어서 화면 밖으로 넘치지 않음).
+              // (카드 모양/드롭다운 동작은 둘이 똑같아서 _buildChurchApproverCard 하나로 공유)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildChurchApproverCard(
+                      title: 'Admin. Pastor', // 종이 양식 표기("Admin. Pastor")에 맞춤
+                      currentUid: _adminPastorUid,
+                      fieldName: 'adminPastorUid',
+                      onSaved: (uid) => setState(() => _adminPastorUid = uid),
+                    ),
+                  ),
+                  const SizedBox(width: 16), // 두 카드 사이 간격
+                  Expanded(
+                    child: _buildChurchApproverCard(
+                      title: 'Finance Chair',
+                      currentUid: _financeChairUid,
+                      fieldName: 'financeChairUid',
+                      onSaved: (uid) => setState(() => _financeChairUid = uid),
+                    ),
+                  ),
+                ],
               ),
 
               // 부서 목록을 담을 흰색 카드
