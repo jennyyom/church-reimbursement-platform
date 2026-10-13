@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 금액 칸 입력 제한(FilteringTextInputFormatter)용
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -290,8 +291,11 @@ class _UploadPageState extends State<UploadPage> {
   //   - department_head(tier 1) → 이 지출이 속한 부서(departments/{departmentId})의 chairUid
   //   - admin_pastor(tier 2)    → 이 교회(churches/{churchId})에 지정된 adminPastorUid
   //     (Admin 페이지 Departments 탭 상단에서 admin이 지정한 값)
+  //   - finance_chair(tier 3)   → 이 교회에 지정된 financeChairUid ($500 초과 건만 해당)
+  //     (Admin Pastor와 마찬가지로 Departments 탭 상단에서 admin이 지정한 값)
   //
-  // 부서장/Admin Pastor가 아직 지정 안 돼 있으면(chairUid나 adminPastorUid가 비어있으면)
+  // 부서장/Admin Pastor/Finance Chair가 아직 지정 안 돼 있으면(chairUid, adminPastorUid,
+  // financeChairUid 중 해당 값이 비어있으면)
   // approverUid는 null로 남음 - 이 경우 그 단계는 "담당자 미배정" 상태가 되고, 나중에
   // ApproverPage 필터링(다음 단계에서 만들 예정)에서 아무한테도 안 보이게 됨. 지출 자체는
   // 정상 제출되니, admin이 나중에 담당자를 지정하면 그때부터 보이기 시작하는 게 의도된 동작.
@@ -310,6 +314,9 @@ class _UploadPageState extends State<UploadPage> {
 
     final churchDoc = await FirebaseFirestore.instance.collection('churches').doc(churchId).get();
     final adminPastorUid = churchDoc.data()?['adminPastorUid'] as String?;
+    // Finance Chair도 Admin Pastor처럼 교회 전체에 한 명이라 같은 churches/{churchId} 문서에 저장됨.
+    // 같은 문서라서 Firestore를 한 번 더 조회할 필요 없이 위에서 읽은 churchDoc을 그대로 씀
+    final financeChairUid = churchDoc.data()?['financeChairUid'] as String?;
 
     return chain.map((step) {
       // chairUid는 부서 문서에 ''(빈 문자열)로 저장되는 경우가 있어서(미배정 부서장) -
@@ -317,6 +324,7 @@ class _UploadPageState extends State<UploadPage> {
       final resolvedUid = switch (step.role) {
         'department_head' => (chairUid != null && chairUid.isNotEmpty) ? chairUid : null,
         'admin_pastor' => adminPastorUid,
+        'finance_chair' => financeChairUid,
         _ => null,
       };
       return ApprovalStep(tier: step.tier, role: step.role, approverUid: resolvedUid);
@@ -334,6 +342,17 @@ class _UploadPageState extends State<UploadPage> {
       );
       return;
     }
+    // 금액을 여기서 한 번만 읽어서 확인 - 숫자로 못 읽거나 0 이하면 제출을 막음.
+    // 금액 칸은 숫자/소수점만 입력되게 막아뒀지만(inputFormatters), 빈칸이나 "1.2.3"처럼
+    // 점이 여러 개인 경우는 거기서 못 걸러짐. 예전엔 이럴 때 tryParse 실패 → 조용히 0으로
+    // 저장돼서 금액도 $0이 되고 승인 단계도 잘못 만들어졌음 (예: $1,200 건이 Finance Chair를 건너뜀)
+    final amount = double.tryParse(_amountController.text.trim());
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid amount before submitting.')),
+      );
+      return;
+    }
     setState(() => _isUploading = true);
 
     try {
@@ -344,8 +363,8 @@ class _UploadPageState extends State<UploadPage> {
         // 여기가 바로 "금액이 진짜로 확정되는 순간"임 — 사용자가 OCR 결과를 그대로 두거나
         // 직접 수정한 뒤 Submit을 누른 시점이라, 이제서야 approvalChain을 안전하게 만들 수 있음.
         // buildApprovalChain(amount)가 이 금액을 보고 $500 이하/초과를 판단해서
-        // 승인 단계 리스트(1단계 or 2단계)를 만들어줌.
-        final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+        // 승인 단계 리스트(2단계 or 3단계)를 만들어줌.
+        // (amount는 함수 맨 위에서 이미 읽고 유효한지 확인해 둔 값)
 
         // draft 생성 경로(_uploadDraftAndWaitForOcr)는 churchId를 따로 상태에 안 남겨뒀어서,
         // approverUid를 채우려면(churches/{churchId} 조회가 필요) 여기서 한 번 더 불러옴
@@ -354,7 +373,7 @@ class _UploadPageState extends State<UploadPage> {
         final churchId = userDocForChurch.data()?['churchId'] as String;
 
         // buildApprovalChain은 role/tier만 정하고, _resolveApprovalChain이 그 자리에
-        // 실제 부서장·Admin Pastor의 uid를 채워 넣음 (자세한 설명은 _resolveApprovalChain 주석 참고)
+        // 실제 부서장·Admin Pastor·Finance Chair의 uid를 채워 넣음 (자세한 설명은 _resolveApprovalChain 주석 참고)
         final resolvedChain = await _resolveApprovalChain(
           buildApprovalChain(amount),
           churchId,
@@ -406,8 +425,8 @@ class _UploadPageState extends State<UploadPage> {
         // 이 시점에 이미 확정돼 있음 (draft 대기 과정이 필요 없음). 그래서 바로
         // approvalChain을 만들어서 Expense 생성할 때 같이 넣어줌.
         // (buildApprovalChain은 role/tier만 정하고, _resolveApprovalChain이 그 자리에
-        // 실제 부서장·Admin Pastor의 uid를 채워 넣음 — 위 draft 경로와 동일한 이유)
-        final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+        // 실제 부서장·Admin Pastor·Finance Chair의 uid를 채워 넣음 — 위 draft 경로와 동일한 이유)
+        // (amount는 함수 맨 위에서 이미 읽고 유효한지 확인해 둔 값)
         final resolvedChain = await _resolveApprovalChain(
           buildApprovalChain(amount),
           appUser.churchId,
@@ -513,7 +532,14 @@ class _UploadPageState extends State<UploadPage> {
               // 금액 입력 — OCR로 자동 채워지거나 직접 입력
               TextField(
                 controller: _amountController,
-                keyboardType: TextInputType.number,
+                // iOS에서 TextInputType.number는 소수점(.) 없는 숫자 키패드가 떠서 센트를 못 넣음 →
+                // decimal: true로 소수점 있는 키패드를 띄움
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                // 숫자와 소수점 외의 문자는 입력 자체를 막음.
+                // double.tryParse는 "1,200.00"이나 "$600"을 못 읽어서 0으로 처리됐고, 그러면
+                // $500 초과 건도 승인 체인이 2단계로 만들어져 Finance Chair를 건너뛰었음.
+                // 쉼표/달러 기호를 "거부"하는 방식이라 "1,200.00"을 붙여넣어도 "1200.00"으로 남음
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                 decoration: InputDecoration(
                   labelText: l10n.amount,
                   border: const OutlineInputBorder(),
