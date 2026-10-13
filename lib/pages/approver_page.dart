@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:church_reimbursement/l10n/app_localizations.dart';
+import 'package:intl/intl.dart'; // 날짜를 앱 언어 순서로 표시(DateFormat)
 import '../models/expense.dart';
 import '../models/approval_step.dart'; // _approve/_reject에서 ApprovalStep을 직접 다루기 위해 필요
 import '../main.dart';
@@ -347,96 +348,110 @@ class _ApproverPageState extends State<ApproverPage>
               ),
             ),
             const SizedBox(width: 12),
+            // 오른쪽 칸: 영수증 정보 4줄 + 맨 아래 오른쪽에 승인/반려 버튼 나란히.
+            // 버튼 위치는 몇 번 바꿔봤음:
+            //   1) 이름과 버튼 두 개를 한 Row에 → 이름 줄이 버튼 두 개만큼 높아져서 이름과 금액 사이가 벌어짐
+            //   2) 버튼을 오른쪽 칸 세로 가운데로 → 정보 줄과 어긋나 보임
+            //   3) Approve는 1줄 옆, Reject는 2줄 옆 → 줄은 맞지만 이름/금액 줄이 버튼만큼 좁아짐
+            //   4) 지금: 정보를 다 읽은 다음 마지막에 결정하는 순서대로 맨 아래에 나란히.
+            //      위의 네 줄이 모두 카드 끝까지 넓게 써서 폰에서도 줄바꿈이 가장 적음
+            //      (대신 카드가 버튼 한 줄만큼 높아짐)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // 제출자 이름 + 제출한 부서 배지 - 승인자가 "어느 부서 예산으로 들어온 건지"를
+                  // 바로 알 수 있게 이름 옆에 붙임 (멤버 홈 화면의 부서 배지와 같은 스타일).
+                  // Wrap: 폰에서 부서 이름이 길면 배지가 다음 줄로 내려가게 (잘리지 않게)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      // 제출자 이름
                       Text(
                         expense.userName ?? 'Unknown',
                         style: const TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w500),
                       ),
-                      // 승인/반려 버튼 — 위아래로 배치
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          TextButton.icon(
-                            onPressed: () => _approve(expense),
-                            icon: const Icon(Icons.check,
-                                size: 14, color: Color(0xFF27500A)),
-                            label: Text(l10n.approve,
-                                style: const TextStyle(
-                                    fontSize: 12, color: Color(0xFF27500A))),
-                            style: TextButton.styleFrom(
-                              backgroundColor: const Color(0xFFEAF3DE),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
+                      if (expense.departmentName != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade50,
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          const SizedBox(height: 6),
-                          TextButton.icon(
-                            onPressed: () => _reject(expense),
-                            icon: const Icon(Icons.close,
-                                size: 14, color: Color(0xFF501313)),
-                            label: Text(l10n.reject,
-                                style: const TextStyle(
-                                    fontSize: 12, color: Color(0xFF501313))),
-                            style: TextButton.styleFrom(
-                              backgroundColor: const Color(0xFFFCEBEB),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
+                          child: Text(
+                            expense.departmentName!,
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.indigo.shade400,
+                                fontWeight: FontWeight.w500),
                           ),
-                        ],
-                      ),
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  // 금액
-                  if (expense.amount != null)
-                    Row(
+                  const SizedBox(height: 4),
+                  // 2줄: 금액 · 제출 날짜 - 둘 다 짧아서 한 줄에 깔끔하게 들어감.
+                  // 예전엔 금액/설명/날짜를 아이콘 붙여 한 줄씩(3줄) 썼는데, 카드가 사진보다
+                  // 높아지고 줄이 늘어나서 정리함. 금액은 굵게(가장 먼저 눈에 들어오게), 날짜는 회색.
+                  Text.rich(
+                    TextSpan(
                       children: [
-                        const Icon(Icons.attach_money,
-                            size: 14, color: Colors.green),
-                        const SizedBox(width: 4),
-                        Text('\$${expense.amount!.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 13)),
-                      ],
-                    ),
-                  const SizedBox(height: 3),
-                  // 설명
-                  if (expense.description != null &&
-                      expense.description!.isNotEmpty)
-                    Row(
-                      children: [
-                        const Icon(Icons.edit, size: 14, color: Colors.orange),
-                        const SizedBox(width: 4),
-                        Text(expense.description!,
+                        if (expense.amount != null) ...[
+                          TextSpan(
+                            text: '\$${expense.amount!.toStringAsFixed(2)}',
                             style: const TextStyle(
-                                fontSize: 13, color: Colors.grey)),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87),
+                          ),
+                          const TextSpan(text: '  ·  '),
+                        ],
+                        // 날짜는 앱 언어에 맞는 순서로 (영어 10/5/2026, 한국어 2026. 10. 5.,
+                        // 스와힐리어 5/10/2026) - 미국 교회라 연도 먼저(2026/10/5)는 어색했음
+                        TextSpan(text: DateFormat.yMd(_localeName).format(expense.createdAt)),
                       ],
                     ),
-                  const SizedBox(height: 3),
-                  // 날짜
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today,
-                          size: 14, color: Colors.red),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${expense.createdAt.year}/${expense.createdAt.month}/${expense.createdAt.day}',
-                        style:
-                            const TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
-                    ],
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  // 3줄: 설명 - 한 줄을 통째로 써서 길면 자연스럽게 다음 줄로 이어짐
+                  // (설명 뒤에 날짜를 붙이면 설명이 길 때 날짜가 어중간한 위치로 밀려나서 따로 뺌).
+                  // 설명이 없는 영수증은 이 줄이 빠짐
+                  if (expense.description != null &&
+                      expense.description!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(expense.description!,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.grey)),
+                  ],
+                  const SizedBox(height: 6),
+                  // 승인 진행 흐름 (예: "Mike 10/6 ✓ → You → Finance Chair")
+                  _buildApprovalFlow(expense),
+                  const SizedBox(height: 8),
+                  // 승인/반려 버튼 - 맨 아래 오른쪽에 나란히 (위 주석 4번 참고)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDecisionButton(
+                          label: l10n.approve,
+                          icon: Icons.check,
+                          color: const Color(0xFF27500A),
+                          background: const Color(0xFFEAF3DE),
+                          onPressed: () => _approve(expense),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildDecisionButton(
+                          label: l10n.reject,
+                          icon: Icons.close,
+                          color: const Color(0xFF501313),
+                          background: const Color(0xFFFCEBEB),
+                          onPressed: () => _reject(expense),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -444,6 +459,89 @@ class _ApproverPageState extends State<ApproverPage>
           ],
         ),
       ),
+    );
+  }
+
+  // 승인/반려 버튼 하나 - 두 버튼의 모양(크기/여백/글자 크기)이 항상 똑같도록 한 함수로 만듦.
+  // 버튼이 글자만큼만 폭을 차지함 (언어마다 글자 길이가 달라도 고정 폭 없이 자연스럽게)
+  Widget _buildDecisionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required Color background,
+    required VoidCallback onPressed,
+  }) {
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 14, color: color),
+      label: Text(label, style: TextStyle(fontSize: 12, color: color)),
+      style: TextButton.styleFrom(
+        backgroundColor: background,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
+  // 지금 앱 언어(en/ko/sw) - DateFormat에 넘겨서 날짜를 그 언어의 순서로 보여줌
+  String get _localeName => Localizations.localeOf(context).toString();
+
+  // approvalChain의 role 값을 화면용 이름으로 - Admin 화면/종이 양식과 같은 표기
+  static const _roleLabels = {
+    'department_head': 'Dept. Chair',
+    'admin_pastor': 'Admin. Pastor',
+    'finance_chair': 'Finance Chair',
+  };
+
+  // 승인 진행 흐름 한 줄: "Mike 10/6 ✓ → Pastor 10/7 ✓ → You → Finance Chair"
+  //
+  // 지금 단계 승인자가 "앞에서 누가 언제 승인했는지"와 "내 뒤에 누가 더 남았는지"를
+  // 한눈에 보게 하려고 추가함. 데이터는 이미 approvalChain 각 단계에 저장된
+  // actedBy(승인한 사람 이름)/actedAt(승인 시각)을 그대로 씀 - DB 변경 없음.
+  //   - 이미 승인한 단계(현재 tier 앞) : "이름 월/일 ✓" 초록
+  //   - 지금 단계(= 이 화면을 보는 나)  : "You" 주황 굵게
+  //   - 아직 남은 단계                 : 역할 이름 회색 (아직 승인 전이라 이름 대신 역할)
+  // 남은 단계까지 보여주는 이유: 내가 마지막 승인자인지 바로 알 수 있게
+  // (예: Admin. Pastor 입장에서 $500 이하 건은 "→ You"로 끝나고, 초과 건은 뒤에 Finance Chair가 보임)
+  //
+  // Wrap + 단계별 조각: 폰에서 길어지면 "이름 날짜 ✓" 한 덩어리 단위로 다음 줄로 넘어가게 함
+  // (Text 하나로 이으면 "Mike 10/6"이 중간에서 끊길 수 있음)
+  Widget _buildApprovalFlow(Expense expense) {
+    final currentIndex = expense.currentTier - 1;
+    final pieces = <Widget>[];
+    for (var i = 0; i < expense.approvalChain.length; i++) {
+      final step = expense.approvalChain[i];
+      if (i > 0) {
+        pieces.add(Text('→', style: TextStyle(fontSize: 12, color: Colors.grey.shade400)));
+      }
+      if (i < currentIndex) {
+        final at = step.actedAt;
+        pieces.add(Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              // 월/일도 앱 언어 순서로 (영어 10/6, 한국어 10. 6.)
+              at == null ? (step.actedBy ?? '?') : '${step.actedBy ?? '?'} ${DateFormat.Md(_localeName).format(at)}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF27500A)),
+            ),
+            const SizedBox(width: 2),
+            const Icon(Icons.check, size: 13, color: Color(0xFF27500A)),
+          ],
+        ));
+      } else if (i == currentIndex) {
+        pieces.add(const Text('You',
+            style: TextStyle(fontSize: 12, color: Color(0xFFB45309), fontWeight: FontWeight.w600)));
+      } else {
+        pieces.add(Text(_roleLabels[step.role] ?? step.role,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500)));
+      }
+    }
+    return Wrap(
+      spacing: 6,
+      runSpacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: pieces,
     );
   }
 
@@ -584,7 +682,8 @@ class _ApproverPageState extends State<ApproverPage>
                           size: 14, color: Colors.red),
                       const SizedBox(width: 4),
                       Text(
-                        '${expense.createdAt.year}/${expense.createdAt.month}/${expense.createdAt.day}',
+                        // 앱 언어 순서로 (Pending 카드와 같은 형식)
+                        DateFormat.yMd(_localeName).format(expense.createdAt),
                         style:
                             const TextStyle(fontSize: 13, color: Colors.grey),
                       ),
@@ -637,11 +736,20 @@ class _ApproverPageState extends State<ApproverPage>
         if (expenses.isEmpty) {
           return Center(child: Text(l10n.reviewReceipts));
         }
+        // 한 줄에 카드 하나씩, 카드 최대 폭 720으로 화면 가운데에 둠.
+        // 처음엔 넓은 화면에서 카드를 2~3개씩 나란히 놓았는데, 승인은 한 건씩 차례로
+        // 확인하는 일이라 위에서 아래로 읽히는 게 더 자연스러워서 바꿈.
+        // 폭을 제한하는 이유: 웹에서 카드가 화면 끝까지 늘어나면 글자와 버튼 사이가 텅 빔.
+        // 폰은 원래 720보다 좁아서 차이 없음 - 웹/앱이 거의 똑같이 보임
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           itemCount: expenses.length,
-          itemBuilder: (context, index) =>
-              _buildExpenseCard(expenses[index], l10n),
+          itemBuilder: (context, index) => Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: _buildExpenseCard(expenses[index], l10n),
+            ),
+          ),
         );
       },
     );
