@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // 날짜를 앱 언어 순서로 표시(DateFormat)
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'upload_page.dart';
@@ -345,8 +346,12 @@ void _showLanguagePicker() {
                           ],
                         );
 
-                        // 날짜 문자열 - 넓은 화면에선 설명 옆에, 좁은 화면에선 두 번째 줄에 씀
-                        final dateText = '${e.createdAt.year}/${e.createdAt.month}/${e.createdAt.day}';
+                        // 날짜 문자열 - 넓은 화면에선 설명 옆에, 좁은 화면에선 두 번째 줄에 씀.
+                        // 앱 언어에 맞는 순서로 (영어 10/5/2026, 한국어 2026. 10. 5., 스와힐리어 5/10/2026) -
+                        // 미국 교회라 연도 먼저(2026/10/5)는 어색했음. 승인 화면과 같은 형식
+                        final dateText = DateFormat.yMd(
+                                Localizations.localeOf(context).toString())
+                            .format(e.createdAt);
 
                         // 폰처럼 좁은 화면인지 - 폰은 가로 폭이 보통 360~430, 태블릿/컴퓨터는 600보다 넓음.
                         // 웹/앱(kIsWeb)이 아니라 "화면 너비"로 나누는 이유: 교인들이 폰 브라우저로
