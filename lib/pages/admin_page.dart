@@ -993,8 +993,9 @@ class _AdminPageState extends State<AdminPage> {
               // 금액별 규칙은 approval_chain_builder.dart의 buildApprovalChain과 맞춰야 함
               // (기준이 바뀌면 이 문구도 같이 고칠 것).
               // Dept. Chair는 부서마다 여러 명이라 아래 부서 목록에서 지정하고,
-              // Admin. Pastor와 Finance Chair는 교회 전체에 한 명씩이라 이 위쪽 카드에서 지정함 -
-              // 그 차이를 마지막 줄에서 설명해줌.
+              // Admin. Pastor와 Finance Chair는 교회 전체에 한 명씩이라 이 위쪽 카드에서 지정함.
+              // (이 차이를 설명하는 줄을 따로 뒀었는데, 부서 목록에 Dept Chair 칸이 있어 화면만 봐도
+              //  알 수 있고 문구만 길어져서 뺐음)
               Text.rich(
                 TextSpan(
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.5),
@@ -1005,8 +1006,7 @@ class _AdminPageState extends State<AdminPage> {
                     ),
                     TextSpan(
                       text: 'Total up to \$500 requires 2 signatures - Dept. Chair & Admin. Pastor.\n'
-                          'Total above \$500 requires 3 signatures - Dept. Chair, Admin. Pastor & Finance Chair.\n'
-                          'Dept. Chair is set per department below. Admin. Pastor and Finance Chair are one each for the whole church.',
+                          'Total above \$500 requires 3 signatures - Dept. Chair, Admin. Pastor & Finance Chair.',
                     ),
                   ],
                 ),
