@@ -131,7 +131,8 @@ class _UploadPageState extends State<UploadPage> {
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("This file doesn't look like a valid image. Please choose a photo of your receipt.")),
+          // build() 밖이라 l10n 변수가 없어서 그 자리에서 불러옴 (아래 메시지들도 같은 이유)
+          SnackBar(content: Text(AppLocalizations.of(context)!.invalidImageFile)),
         );
         return;
       }
@@ -150,7 +151,7 @@ class _UploadPageState extends State<UploadPage> {
         if (bytes.lengthInBytes > 5 * 1024 * 1024) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image is too large. Please choose a smaller image (under 5MB).')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.imageTooLarge)),
           );
           return;
         }
@@ -165,12 +166,16 @@ class _UploadPageState extends State<UploadPage> {
         await recognizer.close();
 
         // 금액 찾기 (정규식) — 가장 큰 금액을 total로 가정
-        final amountRegex = RegExp(r'\$?\d+\.\d{2}');
+        // 쉼표 있는 금액(1,234.56)을 먼저 시도함. 예전 정규식(\d+\.\d{2})은 쉼표 뒤만
+        // 읽어서 1,234.56을 234.56으로 잡았고, $1,000 넘는 영수증 금액이 크게 틀어졌음.
+        // Cloud Function(functions/index.js)도 같은 규칙이라 둘을 똑같이 맞춰둠.
+        final amountRegex = RegExp(r'\$?(?:\d{1,3}(?:,\d{3})+\.\d{2}|\d+\.\d{2})');
         final matches = amountRegex.allMatches(result.text);
         if (matches.isNotEmpty) {
           double maxAmount = 0;
           for (final match in matches) {
-            final str = match.group(0)!.replaceAll('\$', '');
+            // double.tryParse는 '$'나 ','가 있으면 실패하므로 둘 다 지우고 숫자로 바꿈
+            final str = match.group(0)!.replaceAll(RegExp(r'[$,]'), '');
             final val = double.tryParse(str) ?? 0;
             if (val > maxAmount) maxAmount = val;
           }
@@ -244,7 +249,8 @@ class _UploadPageState extends State<UploadPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to process receipt: $e')),
+          // 에러 내용($e)은 번역할 수 없어서 번역된 앞부분 뒤에 그대로 붙임 (uploadFailed와 같은 방식)
+          SnackBar(content: Text('${AppLocalizations.of(context)!.processReceiptFailed}: $e')),
         );
       }
     }
@@ -265,7 +271,7 @@ class _UploadPageState extends State<UploadPage> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('Take a Photo'),
+              title: Text(AppLocalizations.of(context)!.takePhoto),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(source: ImageSource.camera); // 카메라로 찍기
@@ -273,7 +279,7 @@ class _UploadPageState extends State<UploadPage> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
+              title: Text(AppLocalizations.of(context)!.chooseFromGallery),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(source: ImageSource.gallery); // 갤러리에서 선택
@@ -338,7 +344,7 @@ class _UploadPageState extends State<UploadPage> {
     // 방어적으로 한 번 더 확인 (예: 코드가 나중에 바뀌어 버튼 조건이 느슨해지는 실수를 대비)
     if (_selectedDepartmentId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a department before submitting.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.selectDepartmentFirst)),
       );
       return;
     }
@@ -349,7 +355,7 @@ class _UploadPageState extends State<UploadPage> {
     final amount = double.tryParse(_amountController.text.trim());
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount before submitting.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.enterValidAmount)),
       );
       return;
     }
@@ -555,7 +561,7 @@ class _UploadPageState extends State<UploadPage> {
                           ),
                         )
                       : null,
-                  helperText: _isProcessingOcr ? 'Reading amount from receipt…' : null,
+                  helperText: _isProcessingOcr ? l10n.readingAmount : null,
                 ),
               ),
               const SizedBox(height: 16),
@@ -591,10 +597,14 @@ class _UploadPageState extends State<UploadPage> {
 
                       return DropdownButtonFormField<String>(
                         value: dropdownValue,
-                        decoration: const InputDecoration(
-                          labelText: 'Department *',
-                          border: OutlineInputBorder(),
-                          helperText: 'Required — determines who approves this expense',
+                        decoration: InputDecoration(
+                          labelText: l10n.departmentLabel,
+                          border: const OutlineInputBorder(),
+                          // 예전 문구 "Required — ..."는 라벨의 '*'와 뜻이 겹쳐서 앞부분을 뺌
+                          helperText: l10n.departmentHelper,
+                          // helperText는 기본 1줄이라 폰 화면에서 문구가 잘렸음 - 2줄까지 줄바꿈 허용
+                          // (나중에 스와힐리어처럼 더 긴 번역이 들어와도 잘리지 않게)
+                          helperMaxLines: 2,
                         ),
                         items: departments.map((doc) {
                           final data = doc.data() as Map<String, dynamic>;
