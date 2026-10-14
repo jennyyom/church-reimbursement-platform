@@ -73,7 +73,8 @@ class _LoginPageState extends State<LoginPage> {
         await FirebaseAuth.instance.signOut();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account not found. Please sign up first.')),
+          // 로그인 처리 함수라 build의 l10n 변수가 없어서 그 자리에서 불러옴 (아래 메시지들도 같음)
+          SnackBar(content: Text(AppLocalizations.of(context)!.accountNotFound)),
         );
         setState(() => _isLoading = false);
         return;
@@ -95,8 +96,8 @@ class _LoginPageState extends State<LoginPage> {
           await FirebaseAuth.instance.signOut();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Admin access is only available on web.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.adminWebOnly),
             ),
           );
         }
@@ -110,7 +111,8 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: $e')),
+        // 에러 내용($e)은 번역할 수 없어서 번역된 앞부분 뒤에 그대로 붙임
+        SnackBar(content: Text('${AppLocalizations.of(context)!.loginFailed}: $e')),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -163,8 +165,9 @@ class _LoginPageState extends State<LoginPage> {
           // 웹: 로고 + 타이틀
           const Icon(Icons.church, size: 40, color: Colors.indigo),
           const SizedBox(height: 8),
-          const Text(
-            'Church Reimbursement',
+          Text(
+            // 앱 이름도 이미 있는 appTitle(교회 경비 정산)로 번역 (아래 두 곳도 같음)
+            l10n.appTitle,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 18,
@@ -302,9 +305,9 @@ class _LoginPageState extends State<LoginPage> {
                         size: 34, color: Colors.white),
                   ),
                   const SizedBox(height: 14),
-                  const Text(
-                    'Church Reimbursement',
-                    style: TextStyle(
+                  Text(
+                    l10n.appTitle,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
@@ -345,7 +348,8 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: Colors.indigo.shade50,
       appBar: AppBar(
-        title: const Text('Church Reimbursement'),
+        // _buildWebLayout에는 l10n 변수가 없어서 그 자리에서 불러옴
+        title: Text(AppLocalizations.of(context)!.appTitle),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         actions: [
