@@ -3,9 +3,7 @@
   "signIn": "Sign In",
   "signOut": "Sign Out",
   "submitReceipt": "Submit Receipt",
-  "amount": "Amount",
   "date": "Date",
-  "description": "Description",
   "category": "Category",
   "pending": "Pending",
   "approved": "Approved",
@@ -44,5 +42,49 @@
   "signupFailed": "Signup failed",
 
   "amount": "Amount",
-  "description": "Description (optional)"
+  "description": "Description (optional)",
+
+  "greeting": "Hi, {name}! 👋",
+  "@greeting": {
+    "description": "Home screen greeting with the user's name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "friendFallback": "Friend",
+  "@friendFallback": {
+    "description": "Used in the greeting when the user's name could not be loaded"
+  },
+  "tapToUpload": "Tap to upload",
+  "myReceipts": "My Receipts",
+  "filterAll": "All",
+  "noReceiptsYet": "No receipts yet",
+  "receiptFallback": "Receipt",
+  "@receiptFallback": {
+    "description": "Shown on a receipt card when the receipt has no description"
+  },
+  "deleteReceiptTitle": "Delete this receipt?",
+  "deleteReceiptMessage": "This will remove it from your list.",
+  "@deleteReceiptMessage": {
+    "description": "Soft delete: hidden from the member and approvers, admins still see it as a record"
+  },
+  "cancel": "Cancel",
+  "delete": "Delete",
+
+  "takePhoto": "Take a Photo",
+  "chooseFromGallery": "Choose from Gallery",
+  "invalidImageFile": "This file doesn't look like a valid image. Please choose a photo of your receipt.",
+  "imageTooLarge": "Image is too large. Please choose a smaller image (under 5MB).",
+  "processReceiptFailed": "Failed to process receipt",
+  "readingAmount": "Reading amount from receipt…",
+  "departmentLabel": "Department *",
+  "departmentHelper": "Determines who approves this expense",
+  "selectDepartmentFirst": "Please select a department before submitting.",
+  "enterValidAmount": "Please enter a valid amount before submitting.",
+
+  "accountNotFound": "Account not found. Please sign up first.",
+  "adminWebOnly": "Admin access is only available on web.",
+  "loginFailed": "Login failed"
 }

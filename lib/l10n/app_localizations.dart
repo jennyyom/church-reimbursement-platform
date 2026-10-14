@@ -118,23 +118,11 @@ abstract class AppLocalizations {
   /// **'Submit Receipt'**
   String get submitReceipt;
 
-  /// No description provided for @amount.
-  ///
-  /// In en, this message translates to:
-  /// **'Amount'**
-  String get amount;
-
   /// No description provided for @date.
   ///
   /// In en, this message translates to:
   /// **'Date'**
   String get date;
-
-  /// No description provided for @description.
-  ///
-  /// In en, this message translates to:
-  /// **'Description (optional)'**
-  String get description;
 
   /// No description provided for @category.
   ///
@@ -291,6 +279,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Signup failed'**
   String get signupFailed;
+
+  /// No description provided for @amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get amount;
+
+  /// No description provided for @description.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get description;
+
+  /// Home screen greeting with the user's name
+  ///
+  /// In en, this message translates to:
+  /// **'Hi, {name}! 👋'**
+  String greeting(String name);
+
+  /// Used in the greeting when the user's name could not be loaded
+  ///
+  /// In en, this message translates to:
+  /// **'Friend'**
+  String get friendFallback;
+
+  /// No description provided for @tapToUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to upload'**
+  String get tapToUpload;
+
+  /// No description provided for @myReceipts.
+  ///
+  /// In en, this message translates to:
+  /// **'My Receipts'**
+  String get myReceipts;
+
+  /// No description provided for @filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get filterAll;
+
+  /// No description provided for @noReceiptsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No receipts yet'**
+  String get noReceiptsYet;
+
+  /// Shown on a receipt card when the receipt has no description
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt'**
+  String get receiptFallback;
+
+  /// No description provided for @deleteReceiptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this receipt?'**
+  String get deleteReceiptTitle;
+
+  /// Soft delete: hidden from the member and approvers, admins still see it as a record
+  ///
+  /// In en, this message translates to:
+  /// **'This will remove it from your list.'**
+  String get deleteReceiptMessage;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @takePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a Photo'**
+  String get takePhoto;
+
+  /// No description provided for @chooseFromGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from Gallery'**
+  String get chooseFromGallery;
+
+  /// No description provided for @invalidImageFile.
+  ///
+  /// In en, this message translates to:
+  /// **'This file doesn\'t look like a valid image. Please choose a photo of your receipt.'**
+  String get invalidImageFile;
+
+  /// No description provided for @imageTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Image is too large. Please choose a smaller image (under 5MB).'**
+  String get imageTooLarge;
+
+  /// No description provided for @processReceiptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to process receipt'**
+  String get processReceiptFailed;
+
+  /// No description provided for @readingAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading amount from receipt…'**
+  String get readingAmount;
+
+  /// No description provided for @departmentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Department *'**
+  String get departmentLabel;
+
+  /// No description provided for @departmentHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Determines who approves this expense'**
+  String get departmentHelper;
+
+  /// No description provided for @selectDepartmentFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a department before submitting.'**
+  String get selectDepartmentFirst;
+
+  /// No description provided for @enterValidAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid amount before submitting.'**
+  String get enterValidAmount;
+
+  /// No description provided for @accountNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Account not found. Please sign up first.'**
+  String get accountNotFound;
+
+  /// No description provided for @adminWebOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin access is only available on web.'**
+  String get adminWebOnly;
+
+  /// No description provided for @loginFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Login failed'**
+  String get loginFailed;
 }
 
 class _AppLocalizationsDelegate

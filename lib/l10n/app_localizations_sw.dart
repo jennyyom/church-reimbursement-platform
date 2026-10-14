@@ -18,13 +18,7 @@ class AppLocalizationsSw extends AppLocalizations {
   String get submitReceipt => 'Wasilisha Risiti';
 
   @override
-  String get amount => 'Kiasi';
-
-  @override
   String get date => 'Tarehe';
-
-  @override
-  String get description => 'Maelezo (si lazima)';
 
   @override
   String get category => 'Aina';
@@ -105,4 +99,88 @@ class AppLocalizationsSw extends AppLocalizations {
 
   @override
   String get signupFailed => 'Usajili umeshindwa';
+
+  @override
+  String get amount => 'Kiasi';
+
+  @override
+  String get description => 'Maelezo (si lazima)';
+
+  @override
+  String greeting(String name) {
+    return 'Hi, $name! 👋';
+  }
+
+  @override
+  String get friendFallback => 'Friend';
+
+  @override
+  String get tapToUpload => 'Tap to upload';
+
+  @override
+  String get myReceipts => 'My Receipts';
+
+  @override
+  String get filterAll => 'All';
+
+  @override
+  String get noReceiptsYet => 'No receipts yet';
+
+  @override
+  String get receiptFallback => 'Receipt';
+
+  @override
+  String get deleteReceiptTitle => 'Delete this receipt?';
+
+  @override
+  String get deleteReceiptMessage => 'This will remove it from your list.';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get takePhoto => 'Take a Photo';
+
+  @override
+  String get chooseFromGallery => 'Choose from Gallery';
+
+  @override
+  String get invalidImageFile =>
+      'This file doesn\'t look like a valid image. Please choose a photo of your receipt.';
+
+  @override
+  String get imageTooLarge =>
+      'Image is too large. Please choose a smaller image (under 5MB).';
+
+  @override
+  String get processReceiptFailed => 'Failed to process receipt';
+
+  @override
+  String get readingAmount => 'Reading amount from receipt…';
+
+  @override
+  String get departmentLabel => 'Department *';
+
+  @override
+  String get departmentHelper => 'Determines who approves this expense';
+
+  @override
+  String get selectDepartmentFirst =>
+      'Please select a department before submitting.';
+
+  @override
+  String get enterValidAmount =>
+      'Please enter a valid amount before submitting.';
+
+  @override
+  String get accountNotFound => 'Account not found. Please sign up first.';
+
+  @override
+  String get adminWebOnly => 'Admin access is only available on web.';
+
+  @override
+  String get loginFailed => 'Login failed';
 }

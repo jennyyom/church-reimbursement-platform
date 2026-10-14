@@ -3,9 +3,7 @@
   "signIn": "로그인",
   "signOut": "로그아웃",
   "submitReceipt": "영수증 제출",
-  "amount": "금액",
   "date": "날짜",
-  "description": "설명",
   "category": "카테고리",
   "pending": "대기중",
   "approved": "승인됨",
@@ -36,5 +34,32 @@
   "signupFailed": "회원가입 실패",
 
   "amount": "금액",
-  "description": "설명 (선택사항)"
+  "description": "설명 (선택사항)",
+
+  "greeting": "안녕하세요, {name}님! 👋",
+  "friendFallback": "성도",
+  "tapToUpload": "눌러서 업로드",
+  "myReceipts": "내 영수증",
+  "filterAll": "전체",
+  "noReceiptsYet": "아직 영수증이 없습니다",
+  "receiptFallback": "영수증",
+  "deleteReceiptTitle": "이 영수증을 삭제할까요?",
+  "deleteReceiptMessage": "내 목록에서 삭제됩니다.",
+  "cancel": "취소",
+  "delete": "삭제",
+
+  "takePhoto": "사진 찍기",
+  "chooseFromGallery": "갤러리에서 선택",
+  "invalidImageFile": "올바른 이미지 파일이 아닌 것 같습니다. 영수증 사진을 선택해주세요.",
+  "imageTooLarge": "이미지가 너무 큽니다. 5MB 이하의 이미지를 선택해주세요.",
+  "processReceiptFailed": "영수증 처리 실패",
+  "readingAmount": "영수증에서 금액을 읽는 중…",
+  "departmentLabel": "부서 *",
+  "departmentHelper": "이 지출을 누가 승인할지 정합니다",
+  "selectDepartmentFirst": "제출하기 전에 부서를 선택해주세요.",
+  "enterValidAmount": "제출하기 전에 올바른 금액을 입력해주세요.",
+
+  "accountNotFound": "계정을 찾을 수 없습니다. 먼저 회원가입해주세요.",
+  "adminWebOnly": "관리자 기능은 웹에서만 사용할 수 있습니다.",
+  "loginFailed": "로그인 실패"
 }
