@@ -2,6 +2,7 @@
 
 > Expense reimbursement and receipt management built for churches and nonprofits.
 
+[![Flutter CI](https://github.com/jennyyom/church-reimbursement-platform/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/jennyyom/church-reimbursement-platform/actions/workflows/flutter-ci.yml)
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=flat&logo=flutter&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=flat&logo=firebase&logoColor=black)
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=flat&logo=dart&logoColor=white)
@@ -55,6 +56,7 @@ Church finance teams still manage reimbursements with paper receipts, email thre
 | OCR | Google ML Kit + Cloud Vision API (via Firebase Functions) |
 | AI Parsing | LLM API (planned) |
 | Hosting | Firebase Hosting |
+| CI | GitHub Actions (analyze + tests on every push/PR) |
 
 ---
 
@@ -127,8 +129,10 @@ firebase deploy --only hosting
 - [x] Admin dashboard (overview / users / history / departments / activity codes)
 - [x] Export CSV
 - [x] OCR — receipt image → amount (ML Kit + Cloud Vision)
-- [ ] AI parsing — text → structured JSON
 - [x] Firebase Hosting deployment (redeploy with `firebase deploy --only hosting` after web-affecting changes)
+- [x] CI with GitHub Actions (flutter analyze + flutter test)
+- [ ] CD — auto-deploy to Firebase Hosting
+- [ ] AI parsing — text → structured JSON
 - [ ] Planning Center / QuickBooks integration
 
 ---
