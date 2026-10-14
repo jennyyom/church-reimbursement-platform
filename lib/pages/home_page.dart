@@ -35,7 +35,10 @@ class _UserHomePageState extends State<UserHomePage> {
         .get();
 
     setState(() {
-      _userName = doc['name'] ?? 'Friend';
+      // 이름이 없으면 빈 문자열로 둠. 예전엔 여기서 'Friend'를 넣었는데, 이 시점엔
+      // 앱 언어에 맞는 말(l10n.friendFallback)을 알 수 없어서 인사말을 그릴 때 바꿔 넣음.
+      // null(아직 불러오는 중)과 ''(불러왔는데 이름 없음)을 구분하려고 null 대신 ''를 씀.
+      _userName = doc['name'] ?? '';
       _churchId = doc['churchId'];
     });
   }
@@ -43,19 +46,24 @@ class _UserHomePageState extends State<UserHomePage> {
   // 영수증 삭제 확인 팝업 - 확인하면 soft-delete(hiddenFromMember 플래그만 세움,
   // 문서 자체는 admin이 계속 볼 수 있도록 남겨둠)
   Future<void> _confirmDeleteExpense(String expenseId) async {
+    // build() 밖의 함수라 build의 l10n 변수를 못 써서 여기서 따로 불러옴
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this receipt?'),
-        content: const Text('This can\'t be undone.'),
+        title: Text(l10n.deleteReceiptTitle),
+        // 예전 문구 "This can't be undone."은 완전히 사라지는 것처럼 읽혀서 바꿈.
+        // 실제로는 hiddenFromMember 표시만 붙여서 내 목록과 승인자 목록에서만 빠지고,
+        // admin에게는 기록으로 남음.
+        content: Text(l10n.deleteReceiptMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -175,7 +183,12 @@ void _showLanguagePicker() {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4, left: 2),
                 child: Text(
-                  'Hi, ${_userName ?? ''}! 👋',
+                  // 불러오는 중(null)엔 예전처럼 이름 자리를 비워둠. 여기서 바로 fallback을 쓰면
+                  // "성도님"이 잠깐 보였다가 진짜 이름으로 바뀌어서 어색함.
+                  // 불러왔는데 이름이 없을 때('')만 friendFallback(Friend/성도)을 씀.
+                  l10n.greeting(_userName == null
+                      ? ''
+                      : (_userName!.isEmpty ? l10n.friendFallback : _userName!)),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -221,7 +234,7 @@ void _showLanguagePicker() {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tap to upload',
+                        l10n.tapToUpload,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.65),
                           fontSize: 12,
@@ -246,7 +259,7 @@ void _showLanguagePicker() {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'My Receipts',
+                          l10n.myReceipts,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -259,11 +272,13 @@ void _showLanguagePicker() {
                           isDense: true,
                           underline: const SizedBox.shrink(),
                           style: const TextStyle(fontSize: 12, color: Colors.indigo),
-                          items: const [
-                            DropdownMenuItem(value: 'all', child: Text('All')),
-                            DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                            DropdownMenuItem(value: 'approved', child: Text('Approved')),
-                            DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                          // value(all/pending/...)는 필터 비교에 쓰는 값이라 영어 그대로 두고,
+                          // 화면에 보이는 글자(child)만 번역함. l10n을 쓰면 const를 못 붙임.
+                          items: [
+                            DropdownMenuItem(value: 'all', child: Text(l10n.filterAll)),
+                            DropdownMenuItem(value: 'pending', child: Text(l10n.pending)),
+                            DropdownMenuItem(value: 'approved', child: Text(l10n.approved)),
+                            DropdownMenuItem(value: 'rejected', child: Text(l10n.rejected)),
                           ],
                           onChanged: (v) {
                             if (v != null) setState(() => _statusFilter = v);
@@ -277,7 +292,7 @@ void _showLanguagePicker() {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           child: Text(
-                            'No receipts yet',
+                            l10n.noReceiptsYet,
                             style: TextStyle(
                                 fontSize: 13, color: Colors.grey.shade400),
                           ),
@@ -323,9 +338,13 @@ void _showLanguagePicker() {
                                     BorderRadius.circular(4),
                               ),
                               child: Text(
-                                // enum.name으로 String 변환
-                                e.status.name[0].toUpperCase() +
-                                    e.status.name.substring(1),
+                                // 예전엔 enum 이름을 대문자로 바꿔서(pending → Pending) 보여줘서
+                                // 언어를 바꿔도 항상 영어로 나왔음. 상태별로 번역된 글자를 고름.
+                                switch (e.status) {
+                                  ExpenseStatus.pending => l10n.pending,
+                                  ExpenseStatus.approved => l10n.approved,
+                                  ExpenseStatus.rejected => l10n.rejected,
+                                },
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: badgeText,
@@ -384,7 +403,7 @@ void _showLanguagePicker() {
                                           // 남은 폭 안에서 줄바꿈되게 함
                                           Expanded(
                                             child: Text(
-                                              e.description ?? 'Receipt',
+                                              e.description ?? l10n.receiptFallback,
                                               style: const TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w500),
@@ -416,7 +435,7 @@ void _showLanguagePicker() {
                                       textBaseline: TextBaseline.alphabetic,
                                       children: [
                                         Text(
-                                          e.description ?? 'Receipt',
+                                          e.description ?? l10n.receiptFallback,
                                           style: const TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w500),
