@@ -1,0 +1,49 @@
+# GitHub에 push하거나 PR을 올릴 때마다 자동으로 코드 검사와 테스트를 돌리는 설정
+# 내 컴퓨터에서는 잘 되는데 다른 환경에서 깨지는 문제를 커밋 단계에서 바로 잡기 위함
+name: Flutter CI
+
+on:
+  # main 브랜치에 push할 때 실행
+  push:
+    branches: [main]
+  # main으로 들어오는 PR을 만들거나 업데이트할 때 실행 (합치기 전에 확인)
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    # GitHub Actions 화면에 job 이름으로 표시됨
+    name: Test
+    # GitHub가 제공하는 리눅스 가상 컴퓨터에서 실행
+    # iOS/Android 빌드가 아니라 분석과 테스트만 하므로 가장 빠르고 저렴한 ubuntu 사용
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) 저장소 코드를 가상 컴퓨터로 내려받기
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # 2) Flutter 설치
+      # 로컬과 같은 3.44.0으로 고정해서, Flutter 버전 차이로 결과가 달라지지 않게 함
+      # cache: true로 다음 실행부터 설치 시간을 줄임
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      # 3) pubspec.yaml에 적힌 패키지 설치
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 4) 코드 정적 분석
+      # 지금 deprecated 안내(info)가 16개 있어서 기본 설정이면 CI가 실패함
+      # --no-fatal-infos로 info는 통과시키고, 진짜 문제인 warning/error만 실패 처리
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+
+      # 5) 테스트 실행
+      # --reporter expanded: 테스트마다 한 줄씩 찍혀서 GitHub 로그에서 읽기 쉬움
+      - name: Run tests
+        run: flutter test --reporter expanded
