@@ -14,7 +14,8 @@ import 'dart:ui' as ui; // 이미지 디코딩 가능 여부 검증용
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; // 앱 OCR
 
 // 금액을 넣으면 승인 단계 리스트(ApprovalStep 리스트)를 만들어주는 함수.
-// $500 이하 = Dept. Chair 1단계, $500 초과 = Dept. Chair + Admin. Pastor 2단계.
+// $500 이하 = Dept. Chair → Admin. Pastor 2단계,
+// $500 초과 = 여기에 Finance Chair를 더한 3단계.
 import '../utils/approval_chain_builder.dart';
 
 import 'package:flutter_image_compress/flutter_image_compress.dart'; // 이미지 압축
@@ -204,10 +205,10 @@ class _UploadPageState extends State<UploadPage> {
 
       // draft: true로 생성 - approver/admin/본인 목록엔 아직 안 보임
       //
-      // ⚠️ approvalChain을 여기서 만들지 않는 이유:
+      // approvalChain을 여기서 만들지 않는 이유:
       // 이 시점엔 아직 OCR이 끝나지 않아서 금액(_amountController.text)이 확정되지 않았음
       // (사용자가 OCR 결과를 보고 직접 고칠 수도 있음). 만약 여기서 미리 체인을 만들면
-      // 아직 확정 안 된 금액 기준으로 "$500 이하니까 1단계" 같은 잘못된 결정을 내려버릴 수 있음.
+      // 아직 확정 안 된 금액 기준으로 "$500 이하니까 2단계(Finance Chair 없음)" 같은 잘못된 결정을 내려버릴 수 있음.
       // 그래서 체인은 사용자가 Submit 버튼을 눌러서 draft를 확정하는 순간(_uploadReceipt 안,
       // 아래쪽 draft 확정 블록)에 최종 금액을 보고 그때 만듦.
       final expense = Expense(
