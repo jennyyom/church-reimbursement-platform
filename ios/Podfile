@@ -1,0 +1,54 @@
+# 앱이 설치될 수 있는 최소 iOS 버전.
+# Xcode 27은 iOS 15.0 미만을 대상으로 빌드할 수 없어서(Target Integrity 경고 → 앞으로 오류)
+# Flutter 기본값 13.0에서 15.0으로 올림. iOS 15는 아이폰 6s(2015)부터 설치 가능하므로
+# 실제 사용자 영향은 거의 없음. Runner.xcodeproj의 IPHONEOS_DEPLOYMENT_TARGET과 같은 값으로 맞출 것.
+platform :ios, '15.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    # 패키지(Pod)마다 자기 podspec에 적힌 옛날 최소 버전(9.0, 10.0, 12.0 등)을 그대로 쓰고 있어서
+    # 빌드할 때 "지원 범위 15.0~" 경고가 30개씩 쏟아짐. 위 platform과 같은 15.0으로 일괄 맞춤.
+    # 이미 15.0보다 높게 잡힌 패키지는 그대로 둠 (낮추면 그 패키지가 깨질 수 있음)
+    target.build_configurations.each do |config|
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.0
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      end
+    end
+  end
+end
