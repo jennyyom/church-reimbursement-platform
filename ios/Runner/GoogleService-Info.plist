@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyCzU7gZLsw0bpoxnNo8iKKQW4scuViXu6k</string>
+	<string>AIzaSyDzOSAIALpPrvjeaVYPcIBIFt40d5hHdmQ</string>
 	<key>GCM_SENDER_ID</key>
 	<string>199064377680</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.churchReimbursement</string>
+	<string>app.churchreimbursement</string>
 	<key>PROJECT_ID</key>
 	<string>church-reimbursment</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:199064377680:ios:3d29ae0d00f3795102f455</string>
+	<string>1:199064377680:ios:00e4a6b1f9fef52002f455</string>
 </dict>
 </plist>
