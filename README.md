@@ -119,6 +119,18 @@ firebase deploy --only hosting
 
 ---
 
+## Testing
+
+```bash
+flutter test
+```
+
+Unit tests cover the approval chain rules ($500 threshold) and the `Expense` / `ApprovalStep` models. CI runs them on every push and pull request.
+
+See [docs/TESTING.md](docs/TESTING.md) for test cases, QA findings, and the manual test checklist.
+
+---
+
 ## Roadmap
 
 - [x] Authentication + role-based routing (admin / approver / member)
