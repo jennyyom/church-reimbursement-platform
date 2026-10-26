@@ -52,19 +52,19 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBFfhgPiTyQ_vw4e51NxbyNNpiYq-_1u-M',
-    appId: '1:199064377680:android:71c532ba92ef454e02f455',
+    appId: '1:199064377680:android:5a1287dd00424ed702f455',
     messagingSenderId: '199064377680',
     projectId: 'church-reimbursment',
     storageBucket: 'church-reimbursment.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCzU7gZLsw0bpoxnNo8iKKQW4scuViXu6k',
-    appId: '1:199064377680:ios:3d29ae0d00f3795102f455',
+    apiKey: 'AIzaSyDzOSAIALpPrvjeaVYPcIBIFt40d5hHdmQ',
+    appId: '1:199064377680:ios:00e4a6b1f9fef52002f455',
     messagingSenderId: '199064377680',
     projectId: 'church-reimbursment',
     storageBucket: 'church-reimbursment.firebasestorage.app',
-    iosBundleId: 'com.example.churchReimbursement',
+    iosBundleId: 'app.churchreimbursement',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
