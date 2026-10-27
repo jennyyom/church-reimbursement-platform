@@ -113,7 +113,7 @@ When a finding is fixed, update its status here and change the matching test fro
 
 ## Manual test checklist
 
-Run before each release, in English and Korean.
+Run before each release, in English and Korean, on a physical iOS device and an Android device (iOS setup: see README → Running on iOS).
 
 **Member flow**
 - [ ] Sign in
