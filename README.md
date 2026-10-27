@@ -101,6 +101,23 @@ flutter pub get
 flutter run
 ```
 
+### Running on iOS
+
+iOS builds need a Mac with Xcode, and **must run on a physical iPhone**. The iOS Simulator can't build this app: Google ML Kit (receipt OCR) doesn't ship an arm64 simulator binary, which iOS 26+ simulators on Apple Silicon require.
+
+One-time setup:
+1. Sign in to Xcode with an Apple Account (Settings → Apple Accounts). A free account works for installing on your own device.
+2. Connect the iPhone by cable, tap **Trust**, then turn on **Settings → Privacy & Security → Developer Mode**.
+
+Install a release build (opens from the home screen; debug builds only launch from `flutter run`):
+
+```bash
+flutter build ios --release
+xcrun devicectl device install app --device <DEVICE_ID> build/ios/Release-iphoneos/Runner.app
+```
+
+Find `<DEVICE_ID>` with `flutter devices`. On first launch, trust the developer under **Settings → General → VPN & Device Management**. Apps signed with a free account stop opening after 7 days; reinstall to continue.
+
 Firebase config (`lib/firebase_options.dart`) is generated via `flutterfire configure` and already checked into the repo, so no `.env` file is needed to run the app.
 
 To deploy backend changes (Firestore rules, Cloud Functions):
