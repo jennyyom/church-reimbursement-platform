@@ -2,8 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- "iOS key (auto created by Firebase)" 키를 씀.
+	     flutterfire configure가 새 iOS 앱에 Cloud Vision 전용 "API key 4"를 붙여서
+	     로그인(identitytoolkit)이 API_KEY_SERVICE_BLOCKED로 막혔었음.
+	     flutterfire configure를 다시 돌리면 이 값이 바뀔 수 있으니 확인할 것
+	     (lib/firebase_options.dart의 ios apiKey와 같은 값이어야 함) -->
 	<key>API_KEY</key>
-	<string>AIzaSyDzOSAIALpPrvjeaVYPcIBIFt40d5hHdmQ</string>
+	<string>AIzaSyCzU7gZLsw0bpoxnNo8iKKQW4scuViXu6k</string>
 	<key>GCM_SENDER_ID</key>
 	<string>199064377680</string>
 	<key>PLIST_VERSION</key>
