@@ -26,6 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- iOS는 카메라/사진 보관함에 접근할 때 "왜 필요한지" 문구가 반드시 있어야 함.
+	     없으면 upload_page에서 image_picker로 영수증을 찍거나 고르는 순간 앱이 바로 종료됨
+	     (Android는 이런 요구가 없어서 그동안 문제가 안 드러났음).
+	     문구는 권한 팝업에 그대로 보이고, 앱 기본 언어가 영어라 영어로 작성. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Church Reimbursement uses the camera to take photos of your receipts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Church Reimbursement accesses your photo library so you can choose a receipt photo to upload.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

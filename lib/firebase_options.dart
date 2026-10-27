@@ -52,19 +52,23 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBFfhgPiTyQ_vw4e51NxbyNNpiYq-_1u-M',
-    appId: '1:199064377680:android:71c532ba92ef454e02f455',
+    appId: '1:199064377680:android:5a1287dd00424ed702f455',
     messagingSenderId: '199064377680',
     projectId: 'church-reimbursment',
     storageBucket: 'church-reimbursment.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
+    // "iOS key (auto created by Firebase)" - Firebase 서비스 전체가 허용된 키.
+    // flutterfire configure가 붙인 "API key 4"는 Cloud Vision 전용이라 로그인이 막혀서 되돌림.
+    // flutterfire configure를 다시 돌리면 이 값이 바뀔 수 있으니 확인할 것
+    // (ios/Runner/GoogleService-Info.plist의 API_KEY와 같은 값이어야 함)
     apiKey: 'AIzaSyCzU7gZLsw0bpoxnNo8iKKQW4scuViXu6k',
-    appId: '1:199064377680:ios:3d29ae0d00f3795102f455',
+    appId: '1:199064377680:ios:00e4a6b1f9fef52002f455',
     messagingSenderId: '199064377680',
     projectId: 'church-reimbursment',
     storageBucket: 'church-reimbursment.firebasestorage.app',
-    iosBundleId: 'com.example.churchReimbursement',
+    iosBundleId: 'app.churchreimbursement',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
