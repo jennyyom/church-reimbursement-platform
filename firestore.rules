@@ -2,16 +2,46 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 유저 본인 정보만 읽기/쓰기
+    // 유저 문서 - 여기 있는 role이 앱 전체 권한(member/approver/admin)의 기준이라
+    // "누가 어떤 필드를 바꿀 수 있나"를 필드 단위로 좁혀둠.
+    // 예전엔 본인에게 allow write(생성+수정+삭제 전부)를 열어둬서, member가 앱을 거치지 않고
+    // Firestore에 직접 요청하면 자기 role을 'admin'으로 바꿀 수 있었음.
+    // (규칙은 하나만 통과해도 허용이라, 아래 admin 전용 update가 있어도 못 막았음)
     match /users/{userId} {
+  // 읽기: 본인 문서, 또는 admin
   allow read: if request.auth != null
     && (request.auth.uid == userId
         || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-  allow write: if request.auth != null
-    && request.auth.uid == userId;
+  // 가입: 본인 uid 문서만, signup_page가 저장하는 5개 필드만 허용 (몰래 다른 필드 못 끼워넣게).
+  // role은 무조건 member로 시작해야 함 - 스스로 admin/approver로 가입하는 것 차단.
+  // 부서는 admin이 배정하는 거라 가입 땐 비워둠. 실제로 있는 교회 id인지도 확인
+  // (초대 코드가 맞는지는 아직 앱에서만 확인함 - 규칙에선 못 봄)
+  // ※ 나중에 AppUser.toFirestore()에 필드를 추가하면 아래 hasOnly 목록에도 같이 추가하고,
+  //   규칙을 앱보다 먼저 배포해야 가입이 안 깨짐
+  allow create: if request.auth != null
+    && request.auth.uid == userId
+    && request.resource.data.keys().hasOnly(['name', 'email', 'churchId', 'role', 'departmentId'])
+    && request.resource.data.role == 'member'
+    && request.resource.data.departmentId == null
+    && exists(/databases/$(database)/documents/churches/$(request.resource.data.churchId));
+  // 본인 수정: 이름만 - role/churchId/departmentId/email은 본인이 못 건드림.
+  // (지금 앱엔 이름 수정 화면이 없지만, 나중에 넣을 수 있게 name만 열어둠)
+  allow update: if request.auth != null
+    && request.auth.uid == userId
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+  // admin 수정: 같은 교회 사람의 role/부서만 (admin 페이지의 Users 탭 드롭다운이 쓰는 두 필드).
+  // churchId 비교 - 다른 교회 admin이 우리 교회 사람 권한을 못 바꾸게.
+  // role 값은 app_user.dart의 UserRole enum 3개만 허용 - 오타나 'superadmin' 같은 값 차단.
+  // 위 본인 수정 규칙과는 "둘 중 하나만 맞으면 통과" 관계라, member가 role을 바꾸려 하면
+  // 본인 규칙(name 아님)에서도, 여기(admin 아님)에서도 걸려서 거부됨
   allow update: if request.auth != null
     && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.churchId == resource.data.churchId
+    && request.resource.data.role in ['member', 'approver', 'admin']
     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'departmentId']);
+  // 계정 문서는 아무도 못 지움. 규칙이 없어도 기본으로 막히지만, "깜빡한 게 아니라 일부러 막음"을
+  // 남기려고 적어둠 (영수증/지출 삭제와는 별개 - 그건 아래 expenses 규칙에서 따로 다룸)
+  allow delete: if false;
 	}
 
     // 교회 정보는 누구나 읽기 가능 (초대 코드 확인용)
